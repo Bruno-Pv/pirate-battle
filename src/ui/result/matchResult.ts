@@ -1,10 +1,7 @@
-export interface MatchResult {
-  readonly score: number
-  readonly survived: boolean
-  readonly elapsedSeconds: number
-  readonly playerName: string
-  readonly completedAt: number
-}
+import type { MatchRecord } from '../../api/types'
+
+/** The Result screen shows exactly the record that gets submitted to the ranking API. */
+export type MatchResult = MatchRecord
 
 const STORAGE_KEY = 'pirate-battle:last-result'
 
@@ -14,11 +11,14 @@ export function loadLastResult(): MatchResult | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<MatchResult>
     if (
+      typeof parsed.matchId !== 'string' ||
       typeof parsed.score !== 'number' ||
       typeof parsed.survived !== 'boolean' ||
       typeof parsed.elapsedSeconds !== 'number' ||
       typeof parsed.playerName !== 'string' ||
-      typeof parsed.completedAt !== 'number'
+      typeof parsed.completedAt !== 'number' ||
+      typeof parsed.config !== 'object' ||
+      parsed.config === null
     ) {
       return null
     }

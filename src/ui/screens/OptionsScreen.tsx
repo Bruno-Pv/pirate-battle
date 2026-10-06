@@ -1,5 +1,6 @@
 import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import {
+  DEFAULT_OPTIONS,
   MATCH_DURATION_MAX_SECONDS,
   MATCH_DURATION_MIN_SECONDS,
   MAX_NAME_LENGTH,
@@ -66,6 +67,14 @@ export function OptionsScreen({ options, onSave, onBack }: OptionsScreenProps) {
     onBack()
   }
 
+  function handleResetToDefaults() {
+    setPlayerName(DEFAULT_OPTIONS.playerName)
+    setSoundEnabled(DEFAULT_OPTIONS.soundEnabled)
+    setMatchDurationSeconds(String(DEFAULT_OPTIONS.matchDurationSeconds))
+    setSpawnIntervalSeconds(String(DEFAULT_OPTIONS.spawnIntervalSeconds))
+    setErrors({})
+  }
+
   return (
     <div style={styles.screen}>
       <h1 style={styles.title}>Options</h1>
@@ -112,7 +121,8 @@ export function OptionsScreen({ options, onSave, onBack }: OptionsScreenProps) {
           input={
             <input
               type="number"
-              inputMode="numeric"
+              inputMode="decimal"
+              step="0.5"
               min={SPAWN_INTERVAL_MIN_SECONDS}
               max={SPAWN_INTERVAL_MAX_SECONDS}
               value={spawnIntervalSeconds}
@@ -138,6 +148,9 @@ export function OptionsScreen({ options, onSave, onBack }: OptionsScreenProps) {
             Back
           </button>
         </div>
+        <button type="button" style={styles.resetButton} onClick={handleResetToDefaults}>
+          Reset to defaults
+        </button>
       </form>
     </div>
   )
@@ -242,5 +255,14 @@ const styles = {
     border: '1px solid rgba(255,255,255,0.3)',
     borderRadius: 6,
     cursor: 'pointer',
+  },
+  resetButton: {
+    padding: '6px 0',
+    fontSize: 13,
+    color: '#9fb0c0',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    textDecoration: 'underline',
   },
 } as const satisfies Record<string, CSSProperties>

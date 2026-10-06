@@ -1,13 +1,17 @@
 import { useState, type CSSProperties } from 'react'
+import type { GameOptions } from '../options/optionsStore'
+import { MatchHistoryPanel } from '../leaderboard/MatchHistoryPanel'
+import { RankingPanel } from '../leaderboard/RankingPanel'
 
 interface MenuScreenProps {
+  options: GameOptions
   onPlay: () => void
   onOptions: () => void
 }
 
-type Tab = 'play' | 'how-to-play'
+type Tab = 'play' | 'how-to-play' | 'ranking' | 'history'
 
-export function MenuScreen({ onPlay, onOptions }: MenuScreenProps) {
+export function MenuScreen({ options, onPlay, onOptions }: MenuScreenProps) {
   const [tab, setTab] = useState<Tab>('play')
 
   return (
@@ -20,6 +24,12 @@ export function MenuScreen({ onPlay, onOptions }: MenuScreenProps) {
         </TabButton>
         <TabButton active={tab === 'how-to-play'} onClick={() => setTab('how-to-play')}>
           How to Play
+        </TabButton>
+        <TabButton active={tab === 'ranking'} onClick={() => setTab('ranking')}>
+          Ranking
+        </TabButton>
+        <TabButton active={tab === 'history'} onClick={() => setTab('history')}>
+          History
         </TabButton>
       </div>
 
@@ -46,6 +56,12 @@ export function MenuScreen({ onPlay, onOptions }: MenuScreenProps) {
           </ul>
         </div>
       )}
+
+      {tab === 'ranking' && (
+        <RankingPanel config={{ durationSeconds: options.matchDurationSeconds, spawnIntervalSeconds: options.spawnIntervalSeconds }} />
+      )}
+
+      {tab === 'history' && <MatchHistoryPanel />}
     </div>
   )
 }
@@ -75,6 +91,8 @@ const styles = {
     gap: 20,
     fontFamily: 'system-ui, sans-serif',
     color: '#e8edf2',
+    overflowY: 'auto',
+    padding: '24px 0',
   },
   title: {
     margin: 0,
@@ -84,6 +102,8 @@ const styles = {
   tabs: {
     display: 'flex',
     gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   tabButton: {
     padding: '8px 18px',

@@ -80,11 +80,16 @@ export function GameScreen({ options, onGameEnd, onQuit }: GameScreenProps) {
 
     const timeoutId = window.setTimeout(() => {
       onGameEnd({
+        matchId: crypto.randomUUID(),
         score: state.score,
         survived,
         elapsedSeconds: state.elapsedSeconds,
         playerName: options.playerName,
         completedAt: Date.now(),
+        config: {
+          durationSeconds: state.matchSettings.durationSeconds,
+          spawnIntervalSeconds: state.matchSettings.spawnIntervalSeconds,
+        },
       })
     }, GAME_END_DELAY_MS)
 
