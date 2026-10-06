@@ -1,8 +1,15 @@
 import { Application, Container } from 'pixi.js'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { gameConfig } from '../../config/gameConfig'
+import { createSimStore } from '../bridge/simStore'
+import { createKeyboardIntentSource } from '../input/keyboardInput'
+import { systemClock } from '../sim/clock'
+import { createFixedStepLoop } from '../sim/fixedStepLoop'
+import { createInitialState, stepSimulation } from '../sim/simulation'
 import { createArenaLayer } from './arena'
-import { loadArenaTexture } from './textures'
+import { createPlayerSprite, syncPlayerSprite } from './playerSprite'
+import { createPlayerShipTexture } from './shipTexture'
+import { loadGameTextures } from './textures'
 
 type LoadState =
   | { status: 'loading'; progress: number }
@@ -20,13 +27,14 @@ export function PixiStage() {
 
     let cancelled = false
     let app: Application | null = null
+    let cleanupGameplay: (() => void) | null = null
 
     async function boot(host: HTMLDivElement) {
       setLoadState({ status: 'loading', progress: 0 })
 
-      let tilesTexture
+      let textures
       try {
-        tilesTexture = await loadArenaTexture((progress) => {
+        textures = await loadGameTextures((progress) => {
           if (!cancelled) setLoadState({ status: 'loading', progress })
         })
       } catch (error) {
@@ -57,7 +65,11 @@ export function PixiStage() {
       host.appendChild(nextApp.canvas)
 
       const world = new Container({ label: 'world' })
-      world.addChild(createArenaLayer(tilesTexture))
+      world.addChild(createArenaLayer(textures.tiles))
+
+      const playerSprite = createPlayerSprite(createPlayerShipTexture(textures.ships))
+      world.addChild(playerSprite)
+
       nextApp.stage.addChild(world)
 
       function layout() {
@@ -73,6 +85,30 @@ export function PixiStage() {
       layout()
       nextApp.renderer.on('resize', layout)
 
+      const simStore = createSimStore(createInitialState())
+      const intentSource = createKeyboardIntentSource()
+      intentSource.attach()
+
+      const loop = createFixedStepLoop({
+        stepSeconds: 1 / 60,
+        clock: systemClock,
+        onFixedStep: (dt) => {
+          simStore.setState(stepSimulation(simStore.getState(), intentSource.getIntent(), dt))
+        },
+      })
+      loop.start()
+
+      function syncFrame() {
+        syncPlayerSprite(playerSprite, simStore.getState().player)
+      }
+      nextApp.ticker.add(syncFrame)
+
+      cleanupGameplay = () => {
+        loop.stop()
+        intentSource.detach()
+        nextApp.ticker.remove(syncFrame)
+      }
+
       setLoadState({ status: 'ready' })
     }
 
@@ -80,6 +116,7 @@ export function PixiStage() {
 
     return () => {
       cancelled = true
+      cleanupGameplay?.()
       if (app) {
         app.destroy(true, { children: true, texture: false })
         app = null

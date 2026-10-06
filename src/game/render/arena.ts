@@ -20,6 +20,7 @@ export function createArenaLayer(tilesTexture: Texture): Container {
       x: island.x,
       y: island.y,
       scale: island.scale,
+      anchor: 0.5,
     })
     layer.addChild(sprite)
   }
