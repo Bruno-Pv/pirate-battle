@@ -1,15 +1,15 @@
 import { gameConfig } from '../../config/gameConfig'
 import type { PlayerIntent } from '../input/types'
 import { circlesOverlap, overlapsAnyIsland, resolvePosition, steerAroundIslands } from './collision'
-import { createRng, nextRandom } from './rng'
+import { createRng } from './rng'
 import { pickEnemyKind, pickSpawnPosition } from './spawning'
-import type { Enemy, EnemyKind, Projectile, ShipState, SimState, Vector2 } from './types'
+import type { Enemy, EnemyKind, GameEvent, MatchSettings, Projectile, ShipState, SimState, Vector2 } from './types'
 import { add, addScaled, headingForward, headingRight, length, normalize, scale, subtract } from './vectors'
 
 const TWO_PI = Math.PI * 2
 const CONTACT_DAMAGE_COOLDOWN_SECONDS = 1
 
-export function createInitialState(seed: number): SimState {
+export function createInitialState(seed: number, matchSettings: MatchSettings): SimState {
   return {
     status: 'playing',
     elapsedSeconds: 0,
@@ -22,35 +22,44 @@ export function createInitialState(seed: number): SimState {
     weaponCooldowns: { front: 0, left: 0, right: 0 },
     enemies: [],
     projectiles: [],
-    spawnCooldown: gameConfig.spawn.intervalSeconds,
+    spawnCooldown: matchSettings.spawnIntervalSeconds,
     nextEntityId: 1,
     rng: createRng(seed),
+    matchSettings,
   }
 }
 
-export function stepSimulation(state: SimState, intent: PlayerIntent, dt: number): SimState {
+export interface StepResult {
+  readonly state: SimState
+  readonly events: readonly GameEvent[]
+}
+
+export function stepSimulation(state: SimState, intent: PlayerIntent, dt: number): StepResult {
   if (state.status === 'ended') {
-    if (!intent.restart) return state
-    const [reseed] = nextRandom(state.rng)
-    return createInitialState(Math.floor(reseed * 0xffffffff))
+    return { state, events: [] }
   }
+
+  const events: GameEvent[] = []
 
   let next = state
   next = stepPlayerMovement(next, intent, dt)
-  next = stepPlayerWeapons(next, intent, dt)
-  next = stepEnemies(next, dt)
+  next = stepPlayerWeapons(next, intent, dt, events)
+  next = stepEnemies(next, dt, events)
   next = stepProjectiles(next, dt)
-  next = resolveCombat(next)
+  next = resolveCombat(next, events)
   next = stepSpawning(next, dt)
 
   const elapsedSeconds = next.elapsedSeconds + dt
-  const matchTimedOut = elapsedSeconds >= gameConfig.match.durationSeconds
+  const matchTimedOut = elapsedSeconds >= next.matchSettings.durationSeconds
   const playerDied = next.player.hp <= 0
 
   return {
-    ...next,
-    elapsedSeconds,
-    status: matchTimedOut || playerDied ? 'ended' : 'playing',
+    state: {
+      ...next,
+      elapsedSeconds,
+      status: matchTimedOut || playerDied ? 'ended' : 'playing',
+    },
+    events,
   }
 }
 
@@ -67,7 +76,7 @@ function stepPlayerMovement(state: SimState, intent: PlayerIntent, dt: number): 
   return { ...state, player: { ...state.player, position, heading } }
 }
 
-function stepPlayerWeapons(state: SimState, intent: PlayerIntent, dt: number): SimState {
+function stepPlayerWeapons(state: SimState, intent: PlayerIntent, dt: number, events: GameEvent[]): SimState {
   let front = Math.max(0, state.weaponCooldowns.front - dt)
   let left = Math.max(0, state.weaponCooldowns.left - dt)
   let right = Math.max(0, state.weaponCooldowns.right - dt)
@@ -83,17 +92,18 @@ function stepPlayerWeapons(state: SimState, intent: PlayerIntent, dt: number): S
       ...projectiles,
       makeProjectile(nextEntityId, 'player', origin, scale(forward, gameConfig.projectile.speed), gameConfig.weapons.front.damage),
     ]
+    events.push({ type: 'shotFired', position: origin, faction: 'player' })
     nextEntityId += 1
     front = gameConfig.weapons.front.cooldownSeconds
   }
 
   if (intent.fireLeft && left <= 0) {
-    ;({ projectiles, nextEntityId } = fireBroadside(state.player.position, forward, rightVector, -1, projectiles, nextEntityId))
+    ;({ projectiles, nextEntityId } = fireBroadside(state.player.position, forward, rightVector, -1, projectiles, nextEntityId, events))
     left = gameConfig.weapons.side.cooldownSeconds
   }
 
   if (intent.fireRight && right <= 0) {
-    ;({ projectiles, nextEntityId } = fireBroadside(state.player.position, forward, rightVector, 1, projectiles, nextEntityId))
+    ;({ projectiles, nextEntityId } = fireBroadside(state.player.position, forward, rightVector, 1, projectiles, nextEntityId, events))
     right = gameConfig.weapons.side.cooldownSeconds
   }
 
@@ -107,6 +117,7 @@ function fireBroadside(
   side: -1 | 1,
   projectiles: readonly Projectile[],
   nextEntityId: number,
+  events: GameEvent[],
 ): { projectiles: readonly Projectile[]; nextEntityId: number } {
   let result = projectiles
   let id = nextEntityId
@@ -117,6 +128,7 @@ function fireBroadside(
     )
     const velocity = scale(rightVector, side * gameConfig.projectile.speed)
     result = [...result, makeProjectile(id, 'player', origin, velocity, gameConfig.weapons.side.damage)]
+    events.push({ type: 'shotFired', position: origin, faction: 'player' })
     id += 1
   }
   return { projectiles: result, nextEntityId: id }
@@ -132,7 +144,7 @@ function makeProjectile(
   return { id, faction, position, velocity, damage, remainingRangePx: gameConfig.projectile.rangePx }
 }
 
-function stepEnemies(state: SimState, dt: number): SimState {
+function stepEnemies(state: SimState, dt: number, events: GameEvent[]): SimState {
   let nextEntityId = state.nextEntityId
   let projectiles = state.projectiles
   const enemies: Enemy[] = []
@@ -144,7 +156,10 @@ function stepEnemies(state: SimState, dt: number): SimState {
         : stepShooter(enemy, state.player, dt, nextEntityId)
 
     nextEntityId = stepped.nextEntityId
-    if (stepped.projectile) projectiles = [...projectiles, stepped.projectile]
+    if (stepped.projectile) {
+      projectiles = [...projectiles, stepped.projectile]
+      events.push({ type: 'shotFired', position: stepped.projectile.position, faction: 'enemy' })
+    }
     enemies.push(stepped.enemy)
   }
 
@@ -179,9 +194,16 @@ function stepShooter(enemy: Enemy, player: ShipState, dt: number, nextEntityId: 
   const dist = length(toPlayer)
   const heading = dist > 0 ? Math.atan2(toPlayer.y, toPlayer.x) : enemy.heading
 
+  // Approach while out of range, hold position in the attack band, retreat if the player
+  // closes inside minDistancePx — always keeping the heading (and thus aim) on the player.
   let position = enemy.position
   if (dist > cfg.attackRangePx) {
     const moveDir = steerAroundIslands(enemy.position, normalize(toPlayer), cfg.collisionRadius)
+    const desired = addScaled(enemy.position, moveDir, cfg.moveSpeed * dt)
+    position = resolvePosition(desired, cfg.collisionRadius)
+  } else if (dist < cfg.minDistancePx) {
+    const awayFromPlayer = scale(normalize(toPlayer), -1)
+    const moveDir = steerAroundIslands(enemy.position, awayFromPlayer, cfg.collisionRadius)
     const desired = addScaled(enemy.position, moveDir, cfg.moveSpeed * dt)
     position = resolvePosition(desired, cfg.collisionRadius)
   }
@@ -222,7 +244,7 @@ function stepProjectiles(state: SimState, dt: number): SimState {
   return { ...state, projectiles }
 }
 
-function resolveCombat(state: SimState): SimState {
+function resolveCombat(state: SimState, events: GameEvent[]): SimState {
   const enemyHits = new Map<number, number>()
   const consumedProjectileIds = new Set<number>()
   let playerDamage = 0
@@ -257,6 +279,7 @@ function resolveCombat(state: SimState): SimState {
     const hp = enemy.hp - damage
     if (hp <= 0) {
       score += gameConfig.scoring.pointsPerKill
+      events.push({ type: 'enemyDestroyed', position: enemy.position, cause: 'weapon' })
       continue
     }
     afterWeaponDamage.push({ ...enemy, hp })
@@ -275,7 +298,10 @@ function resolveCombat(state: SimState): SimState {
     const contactCfg = enemy.kind === 'chaser' ? gameConfig.enemies.chaser : gameConfig.enemies.shooter
     playerDamage += contactCfg.contactDamage
 
-    if (enemy.kind === 'chaser') continue // self-destructs on impact, no score awarded
+    if (enemy.kind === 'chaser') {
+      events.push({ type: 'enemyDestroyed', position: enemy.position, cause: 'contact' })
+      continue // self-destructs on impact, no score awarded
+    }
 
     enemies.push({ ...enemy, contactCooldown: CONTACT_DAMAGE_COOLDOWN_SECONDS })
   }
@@ -283,6 +309,10 @@ function resolveCombat(state: SimState): SimState {
   const projectiles = state.projectiles.filter((projectile) => !consumedProjectileIds.has(projectile.id))
   const player =
     playerDamage > 0 ? { ...state.player, hp: Math.max(0, state.player.hp - playerDamage) } : state.player
+
+  if (playerDamage > 0) {
+    events.push({ type: 'playerHit', position: state.player.position })
+  }
 
   return { ...state, enemies, projectiles, player, score }
 }
@@ -293,7 +323,7 @@ function stepSpawning(state: SimState, dt: number): SimState {
     return { ...state, spawnCooldown }
   }
   if (state.enemies.length >= gameConfig.spawn.maxAliveEnemies) {
-    return { ...state, spawnCooldown: gameConfig.spawn.intervalSeconds }
+    return { ...state, spawnCooldown: state.matchSettings.spawnIntervalSeconds }
   }
 
   const [kind, afterKind] = pickEnemyKind(state.rng)
@@ -313,7 +343,7 @@ function stepSpawning(state: SimState, dt: number): SimState {
     ...state,
     enemies: [...state.enemies, enemy],
     nextEntityId: state.nextEntityId + 1,
-    spawnCooldown: gameConfig.spawn.intervalSeconds,
+    spawnCooldown: state.matchSettings.spawnIntervalSeconds,
     rng: afterPosition,
   }
 }

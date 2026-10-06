@@ -7,7 +7,6 @@ const RIGHT_KEYS = new Set(['ArrowRight', 'KeyD'])
 const FIRE_FRONT_KEYS = new Set(['Space'])
 const FIRE_LEFT_KEYS = new Set(['KeyQ'])
 const FIRE_RIGHT_KEYS = new Set(['KeyE'])
-const RESTART_KEYS = new Set(['KeyR'])
 
 export interface KeyboardIntentSource {
   attach(): void
@@ -54,7 +53,6 @@ export function createKeyboardIntentSource(target: Window = window): KeyboardInt
         fireFront: hasAny(FIRE_FRONT_KEYS),
         fireLeft: hasAny(FIRE_LEFT_KEYS),
         fireRight: hasAny(FIRE_RIGHT_KEYS),
-        restart: hasAny(RESTART_KEYS),
       }
     },
   }

@@ -42,6 +42,18 @@ export interface WeaponCooldowns {
 
 export type MatchStatus = 'playing' | 'ended'
 
+/** Snapshotted once at match start from the player's saved Options, so changing
+ * Options mid-match (or between matches) never affects a match already in progress. */
+export interface MatchSettings {
+  readonly durationSeconds: number
+  readonly spawnIntervalSeconds: number
+}
+
+export type GameEvent =
+  | { readonly type: 'shotFired'; readonly position: Vector2; readonly faction: ProjectileFaction }
+  | { readonly type: 'enemyDestroyed'; readonly position: Vector2; readonly cause: 'weapon' | 'contact' }
+  | { readonly type: 'playerHit'; readonly position: Vector2 }
+
 export interface SimState {
   readonly status: MatchStatus
   readonly elapsedSeconds: number
@@ -53,4 +65,5 @@ export interface SimState {
   readonly spawnCooldown: number
   readonly nextEntityId: number
   readonly rng: RngState
+  readonly matchSettings: MatchSettings
 }

@@ -4,7 +4,6 @@ export interface PlayerIntent {
   readonly fireFront: boolean
   readonly fireLeft: boolean
   readonly fireRight: boolean
-  readonly restart: boolean
 }
 
 export const NEUTRAL_INTENT: PlayerIntent = {
@@ -13,5 +12,4 @@ export const NEUTRAL_INTENT: PlayerIntent = {
   fireFront: false,
   fireLeft: false,
   fireRight: false,
-  restart: false,
 }

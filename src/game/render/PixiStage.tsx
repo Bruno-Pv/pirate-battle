@@ -1,18 +1,23 @@
 import { Application, Container, type Sprite } from 'pixi.js'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
+import { playSound } from '../audio/sounds'
+import type { GameBridge } from '../bridge/gameBridge'
 import { gameConfig } from '../../config/gameConfig'
-import { createSimStore } from '../bridge/simStore'
+import { combineIntents } from '../input/combineIntents'
 import { createKeyboardIntentSource } from '../input/keyboardInput'
+import { createTouchIntentSource } from '../input/touchInput'
 import { systemClock } from '../sim/clock'
 import { createFixedStepLoop } from '../sim/fixedStepLoop'
-import { createInitialState, stepSimulation } from '../sim/simulation'
-import type { Enemy, Projectile } from '../sim/types'
+import { stepSimulation } from '../sim/simulation'
+import type { Enemy, GameEvent, Projectile } from '../sim/types'
 import { createArenaLayer } from './arena'
-import { createEnemySprite, syncEnemySprite } from './enemySprite'
+import { createEffectTextures } from './effectTextures'
+import { createEffectsLayer } from './effectsLayer'
+import { createEnemySprite, syncEnemySprite, type EnemySprite } from './enemySprite'
 import { syncEntitySprites } from './entityLayer'
 import { createPlayerSprite, syncPlayerSprite } from './playerSprite'
 import { createProjectileSprite, createProjectileTexture, syncProjectileSprite } from './projectileSprite'
-import { createHullTexture } from './shipTexture'
+import { createHullTextureSet } from './shipTexture'
 import { loadGameTextures } from './textures'
 
 type LoadState =
@@ -20,7 +25,12 @@ type LoadState =
   | { status: 'error'; message: string }
   | { status: 'ready' }
 
-export function PixiStage() {
+interface PixiStageProps {
+  bridge: GameBridge
+  touchContainerRef: RefObject<HTMLElement | null>
+}
+
+export function PixiStage({ bridge, touchContainerRef }: PixiStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading', progress: 0 })
   const [retryToken, setRetryToken] = useState(0)
@@ -76,11 +86,16 @@ export function PixiStage() {
       world.addChild(enemyLayer)
       world.addChild(projectileLayer)
 
-      const hullTexture = createHullTexture(textures.ships)
+      const playerHull = createHullTextureSet(textures.ships, 'white')
+      const chaserHull = createHullTextureSet(textures.ships, 'black')
+      const shooterHull = createHullTextureSet(textures.ships, 'blue')
       const projectileTexture = createProjectileTexture(textures.ships)
+      const effectTextures = createEffectTextures(textures.ships)
+      const effectsLayer = createEffectsLayer()
 
-      const playerSprite = createPlayerSprite(hullTexture)
+      const playerSprite = createPlayerSprite(playerHull, effectTextures.damageFire)
       world.addChild(playerSprite)
+      world.addChild(effectsLayer.container)
 
       nextApp.stage.addChild(world)
 
@@ -97,45 +112,96 @@ export function PixiStage() {
       layout()
       nextApp.renderer.on('resize', layout)
 
-      const simStore = createSimStore(createInitialState(Date.now()))
-      const intentSource = createKeyboardIntentSource()
-      intentSource.attach()
+      const keyboard = createKeyboardIntentSource()
+      keyboard.attach()
+      const touch = createTouchIntentSource()
+      const touchContainer = touchContainerRef.current
+      if (touchContainer) touch.attach(touchContainer)
+
+      let pendingEvents: GameEvent[] = []
 
       const loop = createFixedStepLoop({
         stepSeconds: 1 / 60,
         clock: systemClock,
         onFixedStep: (dt) => {
-          simStore.setState(stepSimulation(simStore.getState(), intentSource.getIntent(), dt))
+          const intent = combineIntents(keyboard.getIntent(), touch.getIntent())
+          const result = stepSimulation(bridge.getSimState(), intent, dt)
+          bridge.setSimState(result.state)
+          if (result.events.length > 0) pendingEvents = pendingEvents.concat(result.events)
         },
       })
-      loop.start()
 
-      const enemySprites = new Map<number, Sprite>()
+      function applyPaused(paused: boolean) {
+        if (paused) loop.stop()
+        else loop.start()
+      }
+      applyPaused(bridge.getPaused())
+      const unsubscribePause = bridge.subscribe(() => applyPaused(bridge.getPaused()))
+
+      const enemySprites = new Map<number, EnemySprite>()
       const projectileSprites = new Map<number, Sprite>()
 
+      function handleEvent(event: GameEvent) {
+        switch (event.type) {
+          case 'shotFired':
+            effectsLayer.spawn({
+              texture: effectTextures.muzzleFlash,
+              x: event.position.x,
+              y: event.position.y,
+              lifeMs: 120,
+              startScale: 1,
+              endScale: 1.8,
+            })
+            playSound(event.faction === 'player' ? 'cannonFirePlayer' : 'cannonFireEnemy', 0.5)
+            break
+          case 'enemyDestroyed':
+            effectsLayer.spawn({
+              texture: effectTextures.explosion,
+              x: event.position.x,
+              y: event.position.y,
+              lifeMs: 400,
+              startScale: 0.6,
+              endScale: 1.3,
+            })
+            playSound('explosion', 0.7)
+            break
+          case 'playerHit':
+            playSound('hit', 0.6)
+            break
+        }
+      }
+
       function syncFrame() {
-        const state = simStore.getState()
+        const state = bridge.getSimState()
         syncPlayerSprite(playerSprite, state.player)
-        syncEntitySprites<Enemy>(
+        syncEntitySprites<Enemy, EnemySprite>(
           enemyLayer,
           state.enemies,
           enemySprites,
-          (enemy) => createEnemySprite(hullTexture, enemy.kind),
+          (enemy) => createEnemySprite(enemy.kind === 'chaser' ? chaserHull : shooterHull, effectTextures.damageFire, enemy.kind),
           syncEnemySprite,
         )
-        syncEntitySprites<Projectile>(
+        syncEntitySprites<Projectile, Sprite>(
           projectileLayer,
           state.projectiles,
           projectileSprites,
           (projectile) => createProjectileSprite(projectileTexture, projectile.faction),
           syncProjectileSprite,
         )
+
+        if (pendingEvents.length > 0) {
+          for (const event of pendingEvents) handleEvent(event)
+          pendingEvents = []
+        }
+        effectsLayer.update(nextApp.ticker.deltaMS)
       }
       nextApp.ticker.add(syncFrame)
 
       cleanupGameplay = () => {
         loop.stop()
-        intentSource.detach()
+        unsubscribePause()
+        keyboard.detach()
+        touch.detach()
         nextApp.ticker.remove(syncFrame)
       }
 
@@ -152,7 +218,7 @@ export function PixiStage() {
         app = null
       }
     }
-  }, [retryToken])
+  }, [retryToken, bridge, touchContainerRef])
 
   return (
     <div ref={hostRef} style={styles.host}>

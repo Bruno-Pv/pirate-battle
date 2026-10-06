@@ -25,6 +25,8 @@ export interface GameConfig {
     readonly chaser: EnemyConfig
     readonly shooter: EnemyConfig & {
       readonly attackRangePx: number
+      /** Shooter retreats if the player gets closer than this. */
+      readonly minDistancePx: number
       readonly fireCooldownSeconds: number
       readonly projectileDamage: number
     }
@@ -108,14 +110,15 @@ export const gameConfig: GameConfig = {
       collisionRadius: 20,
       contactDamage: 10,
       attackRangePx: 320,
+      minDistancePx: 150,
       fireCooldownSeconds: 1.4,
       projectileDamage: 6,
     },
   },
   spawn: {
-    intervalSeconds: 3,
+    intervalSeconds: 4.5,
     minDistanceFromPlayerPx: 250,
-    maxAliveEnemies: 12,
+    maxAliveEnemies: 4,
   },
   scoring: {
     pointsPerKill: 1,
