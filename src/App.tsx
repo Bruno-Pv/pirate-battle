@@ -1,7 +1,9 @@
+import { PixiStage } from './game/render/PixiStage'
+
 function App() {
   return (
-    <main>
-      <h1>Pirate Battle</h1>
+    <main style={{ position: 'fixed', inset: 0 }}>
+      <PixiStage />
     </main>
   )
 }
