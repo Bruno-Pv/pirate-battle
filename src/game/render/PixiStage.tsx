@@ -1,4 +1,4 @@
-import { Application, Container } from 'pixi.js'
+import { Application, Container, type Sprite } from 'pixi.js'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { gameConfig } from '../../config/gameConfig'
 import { createSimStore } from '../bridge/simStore'
@@ -6,9 +6,13 @@ import { createKeyboardIntentSource } from '../input/keyboardInput'
 import { systemClock } from '../sim/clock'
 import { createFixedStepLoop } from '../sim/fixedStepLoop'
 import { createInitialState, stepSimulation } from '../sim/simulation'
+import type { Enemy, Projectile } from '../sim/types'
 import { createArenaLayer } from './arena'
+import { createEnemySprite, syncEnemySprite } from './enemySprite'
+import { syncEntitySprites } from './entityLayer'
 import { createPlayerSprite, syncPlayerSprite } from './playerSprite'
-import { createPlayerShipTexture } from './shipTexture'
+import { createProjectileSprite, createProjectileTexture, syncProjectileSprite } from './projectileSprite'
+import { createHullTexture } from './shipTexture'
 import { loadGameTextures } from './textures'
 
 type LoadState =
@@ -67,7 +71,15 @@ export function PixiStage() {
       const world = new Container({ label: 'world' })
       world.addChild(createArenaLayer(textures.tiles))
 
-      const playerSprite = createPlayerSprite(createPlayerShipTexture(textures.ships))
+      const enemyLayer = new Container({ label: 'enemies' })
+      const projectileLayer = new Container({ label: 'projectiles' })
+      world.addChild(enemyLayer)
+      world.addChild(projectileLayer)
+
+      const hullTexture = createHullTexture(textures.ships)
+      const projectileTexture = createProjectileTexture(textures.ships)
+
+      const playerSprite = createPlayerSprite(hullTexture)
       world.addChild(playerSprite)
 
       nextApp.stage.addChild(world)
@@ -85,7 +97,7 @@ export function PixiStage() {
       layout()
       nextApp.renderer.on('resize', layout)
 
-      const simStore = createSimStore(createInitialState())
+      const simStore = createSimStore(createInitialState(Date.now()))
       const intentSource = createKeyboardIntentSource()
       intentSource.attach()
 
@@ -98,8 +110,26 @@ export function PixiStage() {
       })
       loop.start()
 
+      const enemySprites = new Map<number, Sprite>()
+      const projectileSprites = new Map<number, Sprite>()
+
       function syncFrame() {
-        syncPlayerSprite(playerSprite, simStore.getState().player)
+        const state = simStore.getState()
+        syncPlayerSprite(playerSprite, state.player)
+        syncEntitySprites<Enemy>(
+          enemyLayer,
+          state.enemies,
+          enemySprites,
+          (enemy) => createEnemySprite(hullTexture, enemy.kind),
+          syncEnemySprite,
+        )
+        syncEntitySprites<Projectile>(
+          projectileLayer,
+          state.projectiles,
+          projectileSprites,
+          (projectile) => createProjectileSprite(projectileTexture, projectile.faction),
+          syncProjectileSprite,
+        )
       }
       nextApp.ticker.add(syncFrame)
 
