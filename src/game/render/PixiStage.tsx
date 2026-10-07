@@ -9,7 +9,10 @@ import { createTouchIntentSource } from '../input/touchInput'
 import { systemClock } from '../sim/clock'
 import { createFixedStepLoop } from '../sim/fixedStepLoop'
 import { stepSimulation } from '../sim/simulation'
+import { createTestClock } from '../sim/testClock'
 import type { Enemy, GameEvent, Projectile } from '../sim/types'
+import type { GameTestHook } from '../testHook'
+import { isTestMode } from '../testMode'
 import { createArenaLayer } from './arena'
 import { createEffectTextures } from './effectTextures'
 import { createEffectsLayer } from './effectsLayer'
@@ -120,16 +123,38 @@ export function PixiStage({ bridge, touchContainerRef }: PixiStageProps) {
 
       let pendingEvents: GameEvent[] = []
 
+      function runFixedStep(dt: number) {
+        const intent = combineIntents(keyboard.getIntent(), touch.getIntent())
+        const result = stepSimulation(bridge.getSimState(), intent, dt)
+        bridge.setSimState(result.state)
+        if (result.events.length > 0) pendingEvents = pendingEvents.concat(result.events)
+        return result.state
+      }
+
+      const testClock = isTestMode() ? createTestClock() : null
+
       const loop = createFixedStepLoop({
         stepSeconds: 1 / 60,
-        clock: systemClock,
-        onFixedStep: (dt) => {
-          const intent = combineIntents(keyboard.getIntent(), touch.getIntent())
-          const result = stepSimulation(bridge.getSimState(), intent, dt)
-          bridge.setSimState(result.state)
-          if (result.events.length > 0) pendingEvents = pendingEvents.concat(result.events)
-        },
+        clock: testClock ?? systemClock,
+        onFixedStep: runFixedStep,
       })
+
+      if (testClock) {
+        const hook: GameTestHook = {
+          getSimState: () => bridge.getSimState(),
+          getSnapshot: () => bridge.getSnapshot(),
+          step(frames = 1) {
+            let state = bridge.getSimState()
+            for (let i = 0; i < frames; i += 1) {
+              if (bridge.getPaused()) break
+              state = runFixedStep(1 / 60)
+              testClock.advance(1000 / 60)
+            }
+            return state
+          },
+        }
+        window.__game = hook
+      }
 
       function applyPaused(paused: boolean) {
         if (paused) loop.stop()
@@ -203,6 +228,7 @@ export function PixiStage({ bridge, touchContainerRef }: PixiStageProps) {
         keyboard.detach()
         touch.detach()
         nextApp.ticker.remove(syncFrame)
+        if (testClock) delete window.__game
       }
 
       setLoadState({ status: 'ready' })

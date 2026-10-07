@@ -4,6 +4,7 @@ import { createGameBridge } from '../../game/bridge/gameBridge'
 import { useGameSnapshot } from '../../game/bridge/useGameSnapshot'
 import { PixiStage } from '../../game/render/PixiStage'
 import { createInitialState } from '../../game/sim/simulation'
+import { getTestSeed } from '../../game/testMode'
 import type { GameOptions } from '../options/optionsStore'
 import type { MatchResult } from '../result/matchResult'
 import { Hud } from './Hud'
@@ -23,7 +24,7 @@ interface GameScreenProps {
 export function GameScreen({ options, onGameEnd, onQuit }: GameScreenProps) {
   const [bridge] = useState(() =>
     createGameBridge(
-      createInitialState(Date.now(), {
+      createInitialState(getTestSeed() ?? Date.now(), {
         durationSeconds: options.matchDurationSeconds,
         spawnIntervalSeconds: options.spawnIntervalSeconds,
       }),
@@ -51,16 +52,29 @@ export function GameScreen({ options, onGameEnd, onQuit }: GameScreenProps) {
   }, [bridge])
 
   useEffect(() => {
+    // A blur firing before the window was ever actually focused doesn't represent the player
+    // alt-tabbing away — some automated/touch-emulated contexts fire one on load. Only treat
+    // blur as "the player left" once we've observed a real focus first.
+    let hasFocusedOnce = document.hasFocus()
+
     function autoPause() {
       if (bridge.getSimState().status === 'playing') bridge.setPaused(true)
+    }
+    function onFocus() {
+      hasFocusedOnce = true
+    }
+    function onBlur() {
+      if (hasFocusedOnce) autoPause()
     }
     function onVisibilityChange() {
       if (document.hidden) autoPause()
     }
-    window.addEventListener('blur', autoPause)
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('blur', onBlur)
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
-      window.removeEventListener('blur', autoPause)
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('blur', onBlur)
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
   }, [bridge])
