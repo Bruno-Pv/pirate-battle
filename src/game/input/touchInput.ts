@@ -1,16 +1,8 @@
 import type { PlayerIntent } from './types'
 
-type TouchAction = 'thrust-forward' | 'thrust-backward' | 'turn-left' | 'turn-right' | 'fire-front' | 'fire-left' | 'fire-right'
+type TouchAction = 'fire-front' | 'fire-left' | 'fire-right'
 
-const ACTIONS: readonly TouchAction[] = [
-  'thrust-forward',
-  'thrust-backward',
-  'turn-left',
-  'turn-right',
-  'fire-front',
-  'fire-left',
-  'fire-right',
-]
+const ACTIONS: readonly TouchAction[] = ['fire-front', 'fire-left', 'fire-right']
 
 export interface TouchIntentSource {
   attach(container: HTMLElement): void
@@ -62,13 +54,9 @@ export function createTouchIntentSource(): TouchIntentSource {
       pointerToAction.clear()
     },
     getIntent() {
-      const forward = active.has('thrust-forward')
-      const backward = active.has('thrust-backward')
-      const left = active.has('turn-left')
-      const right = active.has('turn-right')
       return {
-        thrust: forward === backward ? 0 : forward ? 1 : -1,
-        turn: left === right ? 0 : right ? 1 : -1,
+        thrust: 0,
+        turn: 0,
         fireFront: active.has('fire-front'),
         fireLeft: active.has('fire-left'),
         fireRight: active.has('fire-right'),

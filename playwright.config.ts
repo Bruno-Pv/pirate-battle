@@ -3,13 +3,13 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
-  // Keeps the single dev-server instance from being overwhelmed by many concurrent browser
-  // contexts hammering it with texture/asset requests at once.
+  // Limits concurrent browser contexts: the timing-sensitive tests (real rAF + Pixi rendering)
+  // get unreliable when too many contexts compete for the same CPU/GPU.
   workers: 2,
   retries: process.env.CI ? 1 : 0,
   reporter: [['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:4173',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -31,9 +31,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
+    // Serves the production build: no dev-server cold start or on-demand dependency
+    // optimization, which made first navigations time out.
+    command: 'npm run build && npm run preview -- --port 4173 --strictPort',
+    url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
+    timeout: 180_000,
   },
 })

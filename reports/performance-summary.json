@@ -1,0 +1,113 @@
+{
+  "measuredAt": "2026-10-07T15:38:11.786Z",
+  "build": "production (vite build + vite preview)",
+  "browser": {
+    "name": "Chromium",
+    "version": "153.0.8010.12",
+    "mode": "headless (channel: chromium)",
+    "gpuRenderer": "ANGLE (AMD, Radeon (TM) RX 470 Graphics (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  },
+  "viewport": "1280x720 @ DPR 1",
+  "hardware": {
+    "cpu": "AMD Ryzen 5 5500",
+    "logicalCpus": 12,
+    "totalMemoryGB": 15.9,
+    "os": "Windows_NT 10.0.26200"
+  },
+  "config": {
+    "durationSeconds": 180,
+    "spawnIntervalSeconds": 4.5,
+    "note": "Default spawn interval, 180s session. The bot is not invincible, so matches end when the ship sinks; matches are repeated until at least 180s of gameplay frames are collected."
+  },
+  "combat": {
+    "frames": 14265,
+    "totalSeconds": 190.3,
+    "meanFrameMs": 13.34,
+    "averageFps": 75,
+    "p50FrameMs": 13.3,
+    "p95FrameMs": 13.4,
+    "p99FrameMs": 13.5,
+    "maxFrameMs": 26.7,
+    "matches": [
+      {
+        "index": 1,
+        "realSeconds": 91.1,
+        "frames": 6830
+      },
+      {
+        "index": 2,
+        "realSeconds": 45.9,
+        "frames": 3440
+      },
+      {
+        "index": 3,
+        "realSeconds": 53.3,
+        "frames": 3995
+      }
+    ]
+  },
+  "entities": {
+    "maxEnemies": 3,
+    "maxProjectiles": 17,
+    "maxEntitiesIncludingPlayer": 21,
+    "matches": [
+      {
+        "index": 1,
+        "simulatedSeconds": 37.9,
+        "renderedFrames": 2279,
+        "maxEnemies": 3,
+        "maxProjectiles": 17
+      },
+      {
+        "index": 2,
+        "simulatedSeconds": 31.7,
+        "renderedFrames": 1902,
+        "maxEnemies": 3,
+        "maxProjectiles": 17
+      },
+      {
+        "index": 3,
+        "simulatedSeconds": 31.5,
+        "renderedFrames": 1892,
+        "maxEnemies": 3,
+        "maxProjectiles": 17
+      }
+    ]
+  },
+  "memory": {
+    "cycles": 5,
+    "readings": [
+      {
+        "cycle": 0,
+        "label": "first match started",
+        "heapMB": 7.59
+      },
+      {
+        "cycle": 1,
+        "label": "new match started after Play Again",
+        "heapMB": 7.94
+      },
+      {
+        "cycle": 2,
+        "label": "new match started after Play Again",
+        "heapMB": 8.11
+      },
+      {
+        "cycle": 3,
+        "label": "new match started after Play Again",
+        "heapMB": 8.21
+      },
+      {
+        "cycle": 4,
+        "label": "new match started after Play Again",
+        "heapMB": 8.32
+      },
+      {
+        "cycle": 5,
+        "label": "new match started after Play Again",
+        "heapMB": 8.43
+      }
+    ],
+    "deltaMB": 0.84
+  }
+}

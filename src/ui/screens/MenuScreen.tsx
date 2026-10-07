@@ -51,7 +51,7 @@ export function MenuScreen({ options, onPlay, onOptions }: MenuScreenProps) {
             <li>Front cannon: Space</li>
             <li>Left / right broadside: Q / E</li>
             <li>Pause: Escape</li>
-            <li>On touch devices, use the on-screen controls</li>
+            <li>On touch devices, drag the left joystick to steer and use the right buttons to fire</li>
             <li>Sink enemy ships for points before time runs out — don't let your HP reach zero</li>
           </ul>
         </div>

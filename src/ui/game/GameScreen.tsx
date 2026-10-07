@@ -7,6 +7,7 @@ import { createInitialState } from '../../game/sim/simulation'
 import { getTestSeed } from '../../game/testMode'
 import type { GameOptions } from '../options/optionsStore'
 import type { MatchResult } from '../result/matchResult'
+import { FullscreenButton } from './FullscreenButton'
 import { Hud } from './Hud'
 import { PauseOverlay } from './PauseOverlay'
 import { RotateDeviceOverlay } from './RotateDeviceOverlay'
@@ -111,10 +112,11 @@ export function GameScreen({ options, onGameEnd, onQuit }: GameScreenProps) {
   }, [snapshot.status, bridge, onGameEnd, options.playerName])
 
   return (
-    <div style={{ position: 'fixed', inset: 0 }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100dvh' }}>
       <PixiStage bridge={bridge} touchContainerRef={touchContainerRef} />
       <Hud snapshot={snapshot} />
       <TouchControls ref={touchContainerRef} />
+      <FullscreenButton />
       {isPortraitMobile ? (
         <RotateDeviceOverlay />
       ) : (

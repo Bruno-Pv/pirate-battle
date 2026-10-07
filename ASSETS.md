@@ -1,0 +1,38 @@
+# Assets, sources and licenses
+
+## Game assets (`assets/`)
+
+The ship, tile, effect and UI sprites (`assets/png`, `assets/spritesheet`, `assets/tilesheet`,
+`assets/vector`), the reference screenshots (`sample*.png`, `preview.png`), the logo
+(`logo_jungle_gaming.svg`) and the WAV sound effects and ambience loops (`assets/sounds`) were
+**provided by Jungle Gaming** in the challenge repository
+(<https://github.com/junglegaming/game-developer-challenge>) and are used unmodified, apart from
+the runtime processing described below.
+
+- **License:** the package does not include a license file.
+- **Use:** these assets were used exclusively for this challenge. No external asset (art, audio or
+  fonts) was added.
+
+Derived at runtime, not as separate files: ship hull textures are composed from the sheet's parts
+(`src/game/render/shipTexture.ts`), and the sprite atlases are sliced by `PIXI.Assets`.
+
+## Fonts
+
+No font files are bundled. The UI uses the system font stack (`system-ui`, `Segoe UI`, `Roboto`).
+
+## Third-party code
+
+| Package | License |
+|---|---|
+| React, React DOM | MIT |
+| PixiJS | MIT |
+| TanStack Query | MIT |
+| Axios | MIT |
+| MSW (including the generated `assets/mockServiceWorker.js`) | MIT |
+| Vite, `@vitejs/plugin-react` | MIT |
+| TypeScript | Apache-2.0 |
+| Playwright | Apache-2.0 |
+| ESLint and plugins, typescript-eslint | MIT |
+
+Exact versions are pinned in `package-lock.json`; each package's full license text is in its
+`node_modules/<package>/LICENSE` and in its npm registry page.

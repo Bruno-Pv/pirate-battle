@@ -4,6 +4,7 @@ import { playSound } from '../audio/sounds'
 import type { GameBridge } from '../bridge/gameBridge'
 import { gameConfig } from '../../config/gameConfig'
 import { combineIntents } from '../input/combineIntents'
+import { createJoystickIntentSource } from '../input/joystickInput'
 import { createKeyboardIntentSource } from '../input/keyboardInput'
 import { createTouchIntentSource } from '../input/touchInput'
 import { systemClock } from '../sim/clock'
@@ -120,11 +121,13 @@ export function PixiStage({ bridge, touchContainerRef }: PixiStageProps) {
       const touch = createTouchIntentSource()
       const touchContainer = touchContainerRef.current
       if (touchContainer) touch.attach(touchContainer)
+      const joystick = createJoystickIntentSource(() => bridge.getSimState().player.heading)
+      if (touchContainer) joystick.attach(touchContainer)
 
       let pendingEvents: GameEvent[] = []
 
       function runFixedStep(dt: number) {
-        const intent = combineIntents(keyboard.getIntent(), touch.getIntent())
+        const intent = combineIntents(combineIntents(keyboard.getIntent(), joystick.getIntent()), touch.getIntent())
         const result = stepSimulation(bridge.getSimState(), intent, dt)
         bridge.setSimState(result.state)
         if (result.events.length > 0) pendingEvents = pendingEvents.concat(result.events)
@@ -227,6 +230,7 @@ export function PixiStage({ bridge, touchContainerRef }: PixiStageProps) {
         unsubscribePause()
         keyboard.detach()
         touch.detach()
+        joystick.detach()
         nextApp.ticker.remove(syncFrame)
         if (testClock) delete window.__game
       }

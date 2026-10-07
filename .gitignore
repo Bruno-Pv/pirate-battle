@@ -39,4 +39,8 @@ lerna-debug.log*
 /blob-report/
 /playwright/.cache/
 
+# Committed reports (the Playwright rules above are root-anchored, this keeps reports/ tracked)
+!/reports/
+!/reports/**
+
 .vercel

@@ -26,9 +26,9 @@ export function Hud({ snapshot }: { snapshot: HudSnapshot }) {
 const styles = {
   hud: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    right: 12,
+    top: 'calc(12px + env(safe-area-inset-top, 0px))',
+    left: 'calc(12px + env(safe-area-inset-left, 0px))',
+    right: 'calc(12px + env(safe-area-inset-right, 0px))',
     display: 'flex',
     flexDirection: 'column',
     gap: 6,

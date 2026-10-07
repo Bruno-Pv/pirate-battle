@@ -3,11 +3,14 @@ import { forwardRef, type CSSProperties } from 'react'
 export const TouchControls = forwardRef<HTMLDivElement>(function TouchControls(_props, ref) {
   return (
     <div ref={ref} style={styles.root}>
-      <div style={styles.dpad}>
-        <TouchButton action="turn-left" style={styles.dpadLeft} label="◀" />
-        <TouchButton action="thrust-forward" style={styles.dpadUp} label="▲" />
-        <TouchButton action="thrust-backward" style={styles.dpadDown} label="▼" />
-        <TouchButton action="turn-right" style={styles.dpadRight} label="▶" />
+      <div
+        data-joystick
+        role="group"
+        aria-label="Movement joystick"
+        style={styles.joystick}
+        onContextMenu={(event) => event.preventDefault()}
+      >
+        <div data-joystick-knob style={styles.knob} />
       </div>
       <div style={styles.fireCluster}>
         <TouchButton action="fire-left" style={styles.fireLeft} label="L" />
@@ -33,6 +36,7 @@ function TouchButton({ action, style, label }: { action: string; style: CSSPrope
 }
 
 const BUTTON_SIZE = 56
+const JOYSTICK_SIZE = 150
 
 const styles = {
   root: {
@@ -55,21 +59,33 @@ const styles = {
     userSelect: 'none',
     touchAction: 'none',
   },
-  dpad: {
+  joystick: {
     position: 'absolute',
-    left: 24,
-    bottom: 24,
-    width: BUTTON_SIZE * 3,
-    height: BUTTON_SIZE * 3,
+    left: 'calc(24px + env(safe-area-inset-left, 0px))',
+    bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+    width: JOYSTICK_SIZE,
+    height: JOYSTICK_SIZE,
+    borderRadius: '50%',
+    border: '1px solid rgba(255,255,255,0.3)',
+    background: 'rgba(11,26,43,0.45)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    touchAction: 'none',
+    userSelect: 'none',
   },
-  dpadUp: { left: BUTTON_SIZE, top: 0 },
-  dpadDown: { left: BUTTON_SIZE, top: BUTTON_SIZE * 2 },
-  dpadLeft: { left: 0, top: BUTTON_SIZE },
-  dpadRight: { left: BUTTON_SIZE * 2, top: BUTTON_SIZE },
+  knob: {
+    width: JOYSTICK_SIZE * 0.4,
+    height: JOYSTICK_SIZE * 0.4,
+    borderRadius: '50%',
+    background: 'rgba(232,237,242,0.55)',
+    border: '1px solid rgba(255,255,255,0.5)',
+    pointerEvents: 'none',
+  },
   fireCluster: {
     position: 'absolute',
-    right: 24,
-    bottom: 24,
+    right: 'calc(24px + env(safe-area-inset-right, 0px))',
+    bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
     width: BUTTON_SIZE * 3,
     height: BUTTON_SIZE * 1.4,
   },
