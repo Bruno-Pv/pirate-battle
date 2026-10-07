@@ -1,22 +1,62 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { HudSnapshot } from '../../game/bridge/gameBridge'
 import { formatTime } from '../formatTime'
 
+/** Seconds remaining at which the time is announced to screen readers. */
+const TIME_MILESTONES_SECONDS = [60, 30, 10]
+
+/** Screen-reader text for the one thing that just changed (score, pause, end, time milestone),
+ * so the live region stays quiet instead of repeating the clock every second. */
+function useAnnouncement(snapshot: HudSnapshot): string {
+  const [message, setMessage] = useState('')
+  const previous = useRef(snapshot)
+
+  useEffect(() => {
+    const before = previous.current
+    previous.current = snapshot
+
+    let next: string | null = null
+    if (snapshot.status === 'ended' && before.status !== 'ended') {
+      next = snapshot.hp > 0 ? `Time is up. Final score ${snapshot.score}.` : `Ship sunk. Final score ${snapshot.score}.`
+    } else if (snapshot.paused !== before.paused) {
+      next = snapshot.paused ? 'Game paused.' : 'Game resumed.'
+    } else if (snapshot.score > before.score) {
+      next = `Score ${snapshot.score}.`
+    } else if (
+      snapshot.timeRemaining !== before.timeRemaining &&
+      TIME_MILESTONES_SECONDS.includes(snapshot.timeRemaining)
+    ) {
+      next = `${snapshot.timeRemaining} seconds remaining.`
+    }
+    if (next !== null) setMessage(next)
+  }, [snapshot])
+
+  return message
+}
+
 export function Hud({ snapshot }: { snapshot: HudSnapshot }) {
+  const announcement = useAnnouncement(snapshot)
   const timeLabel = formatTime(snapshot.timeRemaining)
   const hpFraction = snapshot.maxHp > 0 ? snapshot.hp / snapshot.maxHp : 0
 
   return (
     <div style={styles.hud}>
-      <div style={styles.hpTrack} aria-hidden="true">
+      <div
+        style={styles.hpTrack}
+        role="progressbar"
+        aria-label="Hull"
+        aria-valuemin={0}
+        aria-valuemax={snapshot.maxHp}
+        aria-valuenow={snapshot.hp}
+      >
         <div style={{ ...styles.hpFill, width: `${Math.max(0, hpFraction) * 100}%` }} />
       </div>
       <div style={styles.row}>
         <span>Score: {snapshot.score}</span>
         <span>{timeLabel}</span>
       </div>
-      <p style={styles.srOnly} aria-live="polite">
-        Score {snapshot.score}. Time remaining {timeLabel}.
+      <p style={styles.srOnly} role="status" aria-live="polite">
+        {announcement}
       </p>
     </div>
   )

@@ -3,8 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { worker } from './mocks/browser'
+import { applyResetScenario } from './mocks/scenario'
 
 async function bootstrap() {
+  applyResetScenario()
   try {
     await worker.start({
       onUnhandledRequest: 'bypass',

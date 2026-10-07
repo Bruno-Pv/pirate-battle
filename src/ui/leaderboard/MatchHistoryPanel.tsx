@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 import { useMatchHistory } from '../../api/queries'
-import { formatTime } from '../formatTime'
+import { formatDateTime, formatTime } from '../formatTime'
 import { Pagination } from './Pagination'
 import { QueryState } from './QueryState'
 
@@ -21,19 +21,23 @@ export function MatchHistoryPanel() {
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>Score</th>
-              <th style={styles.th}>Result</th>
-              <th style={styles.th}>Duration</th>
-              <th style={styles.th}>When</th>
+              <th scope="col" style={styles.th}>Date</th>
+              <th scope="col" style={styles.th}>Score</th>
+              <th scope="col" style={styles.th}>Result</th>
+              <th scope="col" style={styles.th}>Duration</th>
+              <th scope="col" style={styles.th}>Config</th>
             </tr>
           </thead>
           <tbody>
             {data?.items.map((entry) => (
               <tr key={entry.matchId}>
+                <td style={styles.td}>{formatDateTime(entry.completedAt)}</td>
                 <td style={styles.td}>{entry.score}</td>
                 <td style={styles.td}>{entry.survived ? 'Survived' : 'Sunk'}</td>
                 <td style={styles.td}>{formatTime(entry.elapsedSeconds)}</td>
-                <td style={styles.td}>{formatRelativeDate(entry.completedAt)}</td>
+                <td style={styles.td}>
+                  {entry.config.durationSeconds}s session · {entry.config.spawnIntervalSeconds}s spawn
+                </td>
               </tr>
             ))}
           </tbody>
@@ -44,16 +48,10 @@ export function MatchHistoryPanel() {
   )
 }
 
-function formatRelativeDate(completedAt: number): string {
-  const diffDays = Math.floor((Date.now() - completedAt) / 86_400_000)
-  if (diffDays <= 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  return `${diffDays} days ago`
-}
-
 const styles = {
   panel: {
-    width: 340,
+    width: 'min(100%, 560px)',
+    padding: '0 16px',
   },
   caption: {
     margin: '0 0 10px',

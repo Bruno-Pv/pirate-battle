@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { queryClient } from './api/queryClient'
-import { submitMatchDurable, useCrossTabInvalidation, useFlushPendingSubmissions } from './api/queries'
+import { useCrossTabInvalidation, useFlushPendingSubmissions, useSubmitMatch } from './api/queries'
 import { isPending, subscribeQueue } from './api/submissionQueue'
 import { setSoundMuted } from './game/audio/sounds'
 import { GameScreen } from './ui/game/GameScreen'
@@ -33,6 +33,7 @@ function Screens() {
   const latestSubmittedId = useRef<string | null>(null)
   const lastResultId = lastResult?.matchId ?? null
 
+  const submitMatch = useSubmitMatch()
   useFlushPendingSubmissions()
   useCrossTabInvalidation()
 
@@ -60,7 +61,10 @@ function Screens() {
   function submitAndTrack(result: MatchResult) {
     latestSubmittedId.current = result.matchId
     setSubmissionStatus('saving')
-    void submitMatchDurable(result).then((success) => {
+    void submitMatch.mutateAsync(result).then(
+      () => true,
+      () => false,
+    ).then((success) => {
       // A newer match may have been submitted meanwhile; only the latest one owns the badge.
       if (latestSubmittedId.current !== result.matchId) return
       setSubmissionStatus(success ? 'saved' : 'pending')

@@ -7,7 +7,7 @@ Live demo: https://pirate-battle-theta.vercel.app
 
 ## Setup
 
-Requirements: Node.js 20+ and npm.
+Requirements: Node.js 20.19+ (or 22.12+, as required by Vite 8) and npm.
 
 ```bash
 npm install
@@ -54,6 +54,10 @@ On phones, the in-game fullscreen button (top right) hides the browser address b
 where the Fullscreen API isn't available (e.g. iPhone Safari), and the layout uses `100dvh` so the
 arena and HUD always fit the visible area.
 
+While paused, a dialog takes focus (Resume is focused first, Tab cycles inside it, Escape resumes).
+Pausing, losing window focus and hiding the tab also release every held key, touch button and the
+joystick, so nothing keeps firing or moving after Resume.
+
 The game also pauses automatically when the tab loses focus or is hidden, and on mobile when the
 device is held in portrait — a prompt asks the player to rotate to landscape. In every case,
 resuming is always an explicit action the player takes (clicking Resume), never automatic.
@@ -80,14 +84,29 @@ and Match History work the same in `npm run dev` and in the deployed production 
 | Scenario | Behavior |
 |---|---|
 | `slow` | Responses resolve after a 2.5s delay (loading states) |
-| `empty` | Responses return no data (empty states) |
-| `error` | Responses return HTTP 500 (error state + Retry) |
+| `empty` | Ranking and History return no data (empty states) |
+| `error` | Every endpoint answers HTTP 500 (error state + Retry) |
+| `clientError` | Every endpoint answers HTTP 400 |
+| `networkError` | Every request fails at the connection level (no HTTP response) |
+| `submitError` | Only the match submission fails (HTTP 503); Ranking and History work, so a finished match stays Pending |
+| `rankingError` | Only the Ranking query fails (HTTP 503) |
+| `historyError` | Only the Match History query fails (HTTP 503) |
 | `timeout` | Responses never arrive before the client's 8s timeout |
 | `timeoutAfterSave` | A match submission is saved server-side immediately, but the *response* is delayed past the client timeout — proves a retry of the same match doesn't create a duplicate |
-| `reorder` | GET requests resolve after a random delay, so concurrent requests can resolve out of order — proves a stale response never overwrites newer data |
-| `reset` | Clears the mock database back to its seed data |
+| `reorder` | GET requests resolve after a fixed, repeating pattern of delays (2.2s, 0.3s, 1.5s, 0.1s, 1.8s, 0.6s), so concurrent requests finish out of order — deterministic, so it reproduces — and a stale response never overwrites newer data |
+| `reset` | On every page load with this parameter, clears the mock database back to its seed data and forgets this browser's own matches, pending submissions and last result (Options are kept). After that it behaves like normal |
+
+A failed submission is not lost: it stays in a pending queue (see ARCHITECTURE.md) and is sent
+again on the next page load, when the browser goes back online, or from the **Retry** button on
+the Result screen. To reproduce recovery, finish a match under `?scenario=submitError` (it shows
+**Pending**), then reload without the parameter: the match is registered exactly once. The
+Result screen's badge follows the queue, so it switches to **Saved** by itself.
 
 Example: `http://localhost:5173/?scenario=error`.
+
+The most recent finished match is also kept in `localStorage`; the Play tab of the main menu shows
+it as **Last result** (also after a refresh) and opens the Result screen with its current
+Saved/Pending status.
 
 ### Test hook
 

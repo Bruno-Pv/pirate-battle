@@ -16,7 +16,8 @@ src/
   ui/            React screens: Menu, Options, Game (HUD/pause/touch), Result, Ranking, History
   api/           typed contracts, Axios client, TanStack Query hooks, pending-submission queue
   mocks/         MSW handlers, fixtures, scenario selector, localStorage-backed mock database
-tests/           Playwright (core flows, extra behavior/mobile joystick specs, visual snapshots)
+tests/           Playwright (core flows, extra behavior/mobile joystick specs, asset publishing checks
+                 in assets.spec.ts, visual snapshots)
 scripts/         measure-performance.mjs — reproduces the numbers in reports/PERFORMANCE.md
 reports/         committed Playwright HTML report and performance measurements (with raw data)
 assets/          the full challenge asset pack; the build publishes only what the manifest lists
@@ -60,7 +61,12 @@ injected rather than read globally so the simulation can be driven deterministic
 
 Pausing (manual, on blur/hidden, or portrait-on-mobile) simply calls `loop.stop()` /
 `loop.start()` — no time or queued input accumulates while paused, and resuming is always an
-explicit player action.
+explicit player action. Every input source has a `reset()`; `PixiStage` calls them on pause, on
+window `blur` and when the tab becomes hidden, because the matching keyup/pointerup may never reach
+the page and a stuck key would otherwise keep the ship moving or firing after Resume.
+
+The pause dialog (`PauseOverlay`) is modal: Resume is focused when it opens, Tab/Shift+Tab cycle
+inside it, and Escape (handled by `GameScreen`'s global listener) resumes.
 
 ## Input layer and the virtual joystick
 
@@ -87,8 +93,11 @@ in.
 
 ## Resource lifecycle
 
-Textures are loaded once via `PIXI.Assets` with a progress callback shown as a loading bar; a
-failed load shows a Retry button. The `Application`, canvas, and all its sprites/listeners are
+Textures are loaded once via `PIXI.Assets` with a progress callback shown as a loading bar. Pixi's
+default load strategy is `'skip'` (a failed file resolves as `undefined`), so `loadGameTextures`
+passes `strategy: 'throw'` and also validates the result; any failure — a texture, or the renderer
+itself failing to initialize because WebGL is unavailable — shows an error with a Retry button
+that boots again. Entity sprites are destroyed with their children when they leave the arena. The `Application`, canvas, and all its sprites/listeners are
 created and torn down inside a single `useEffect` in `PixiStage`, guarded by a `cancelled` flag
 checked after every `await` — this makes it safe under React's Strict Mode double-invoke in dev
 (mount → cleanup → mount never leaks a second canvas or a second set of event listeners, so a
@@ -101,7 +110,7 @@ Everything is `localStorage`-backed (no real server):
 | Key | What |
 |---|---|
 | `pirate-battle:options` | Player name, sound, match duration, spawn interval |
-| `pirate-battle:last-result` | The most recent match's result (for the Result screen) |
+| `pirate-battle:last-result` | The most recent match's result; shown by the menu's "Last result" button and the Result screen, also after a refresh |
 | `pirate-battle:mock-matches` | The mocked backend's "database" of match records |
 | `pirate-battle:my-match-ids` | Which of those records this browser actually played (History is scoped to these; Ranking shows everyone) |
 | `pirate-battle:pending-submissions` | Match records not yet confirmed saved, retried on load and on `online` |
@@ -115,6 +124,15 @@ Axios + MSW + TanStack Query, entirely client-side:
   mid-request never loses it; `POST /api/matches` upserts by `matchId`, so retrying a submission
   that already landed server-side (e.g. after a client-side timeout) returns the existing record
   instead of creating a duplicate.
+- **Registration is a mutation.** `useSubmitMatch` (`useMutation`) queues the record, sends it with
+  Axios and, in `onSuccess`, removes it from the queue and invalidates the Ranking and History
+  queries. Page-load and `online` retries of older queued records use the same upsert endpoint.
+- **Queue status on the Result screen.** `submissionQueue` notifies subscribers when the queue
+  changes, so the Result badge is derived from "is this match still queued?": it starts as Pending
+  after a refresh if the record was never confirmed, and turns Saved when a background retry
+  succeeds. Only the latest submitted match controls the badge.
+- **Mock startup failures.** If MSW can't start (e.g. service workers blocked), the app still
+  renders; Ranking and History then show their error state with Retry.
 - **Cross-tab updates.** A successful submission invalidates the local tab's Ranking/History
   queries directly; other tabs pick it up via the native `storage` event, which only fires in
   tabs that didn't make the write.
@@ -125,6 +143,26 @@ Axios + MSW + TanStack Query, entirely client-side:
 - **Ranking fairness.** Entries are filtered to the exact `{durationSeconds, spawnIntervalSeconds}`
   the viewer is currently configured for (each match snapshots its own config at start), and tied
   scores break deterministically (survival time, then submission time, then `matchId`).
+
+## Mock scenarios
+
+`src/mocks/scenario.ts` reads `?scenario=` per request and the handlers in `handlers.ts` apply
+it per endpoint (`submit`, `ranking`, `history`): delays (`slow`, `timeout`, `reorder`), HTTP
+failures (`error` 500, `clientError` 400, and 503 for the single-endpoint `submitError`,
+`rankingError`, `historyError`), connection failures (`networkError` uses `HttpResponse.error()`),
+`empty` results and `timeoutAfterSave`. `reorder` cycles through a fixed list of latencies instead
+of using randomness, so out-of-order responses are reproducible. `reset` runs once at startup
+(`applyResetScenario`, called from `main.tsx` before rendering) and clears the mock database, the
+list of own matches, the pending queue and the last result. A 4xx on submission is treated like any
+other failure and stays queued; a real backend would likely drop records it rejects as invalid.
+The README lists every scenario.
+
+## Accessibility notes
+
+The HUD's live region (`Hud.tsx`) announces only real changes — a higher score, pause/resume, the
+end of the match and the 60/30/10-second marks — never the per-second clock. The hull bar is a
+`progressbar` for assistive technology. The History table shows each match's date and time and the
+configuration it was played under.
 
 ## Performance
 
@@ -160,6 +198,9 @@ Measured against the production build (`npm run build && npm run preview`) with 
   in a real backend later.
 - **Simple AI and collision.** Enemies have three behaviors (seek, hold, flee) and circle-based
   collision/steering — no pathfinding, no formation or difficulty-scaling behavior over a match.
+- **Spawn and steering tunables live in `gameConfig`** (`spawn.chaserProbability`,
+  `edgeMarginPx`, `maxPlacementAttempts`, `enemies.contactDamageCooldownSeconds`,
+  `enemies.islandAvoidLookaheadPx`), so rebalancing doesn't touch the simulation code.
 - **Visual damage has 3 discrete stages**, not continuous deformation, and reuses the sheet's
   existing hull art rather than custom damage sprites.
 - **Touch controls always render**, even on desktop (they're unobtrusive and double as a quick

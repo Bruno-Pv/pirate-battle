@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { STORAGE_KEYS } from '../config/storageKeys'
 import { fetchMatchHistory, fetchRanking, submitMatch } from './matches'
@@ -32,22 +32,24 @@ function invalidateMatchQueries() {
   void queryClient.invalidateQueries({ queryKey: ['matchHistory'] })
 }
 
-/** Submits a finished match durably: queues it first so a reload before the request completes
- * doesn't lose it, then sends it. A failed attempt stays queued for the next retry.
- * Resolves true on success, false if it's still pending (queued for retry). */
-export function submitMatchDurable(record: MatchRecord): Promise<boolean> {
-  recordMyMatch(record.matchId)
-  enqueue(record)
-  return submitMatch(record)
-    .then(() => {
+/**
+ * Registers a finished match. The record is queued (and remembered as "mine") *before* the
+ * request, so a reload mid-request doesn't lose it; it leaves the queue only once the server
+ * confirmed it. A failed attempt stays queued for the next retry (page load, `online`, or the
+ * Retry button). The server upserts by matchId, so resending never duplicates it.
+ */
+export function useSubmitMatch() {
+  return useMutation({
+    mutationFn: (record: MatchRecord) => {
+      recordMyMatch(record.matchId)
+      enqueue(record)
+      return submitMatch(record)
+    },
+    onSuccess: (_saved, record) => {
       dequeue(record.matchId)
       invalidateMatchQueries()
-      return true
-    })
-    .catch(() => {
-      // Stays in the queue; useFlushPendingSubmissions (or a manual retry) picks it up later.
-      return false
-    })
+    },
+  })
 }
 
 /** Retries any queued matches on mount and whenever the browser regains connectivity. */
