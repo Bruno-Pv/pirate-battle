@@ -10,6 +10,7 @@ import type { MatchResult } from '../result/matchResult'
 import { FullscreenButton } from './FullscreenButton'
 import { Hud } from './Hud'
 import { PauseOverlay } from './PauseOverlay'
+import { createMatchId } from '../result/matchId'
 import { RotateDeviceOverlay } from './RotateDeviceOverlay'
 import { TouchControls } from './TouchControls'
 import { useIsPortraitMobile } from './useIsPortraitMobile'
@@ -102,7 +103,7 @@ export function GameScreen({ options, onGameEnd, onQuit }: GameScreenProps) {
 
     const timeoutId = window.setTimeout(() => {
       endContext.current.onGameEnd({
-        matchId: crypto.randomUUID(),
+        matchId: createMatchId(),
         score: state.score,
         survived,
         elapsedSeconds: state.elapsedSeconds,

@@ -17,7 +17,12 @@ src/
   api/           typed contracts, Axios client, TanStack Query hooks, pending-submission queue
   mocks/         MSW handlers, fixtures, scenario selector, localStorage-backed mock database
 tests/           Playwright (core flows, extra behavior/mobile joystick specs, asset publishing checks
-                 in assets.spec.ts, visual snapshots)
+                 in assets.spec.ts, visual snapshots). resilience.spec.ts drives the real app in the
+                 browser (asset 404 + Retry, stuck keys, auto-pause, abandoned matches, submission
+                 recovery without duplicates, Ranking/History pagination and loading/empty/error
+                 states). simulation.spec.ts imports the simulation modules and runs them directly
+                 — pure logic, no browser or page — for spawn interval, Chaser, Shooter, contact
+                 cooldown, damage and score; it runs on the desktop project only.
 scripts/         measure-performance.mjs — reproduces the numbers in reports/PERFORMANCE.md
 reports/         committed Playwright HTML report and performance measurements (with raw data)
 assets/          the full challenge asset pack; the build publishes only what the manifest lists
@@ -97,7 +102,20 @@ Textures are loaded once via `PIXI.Assets` with a progress callback shown as a l
 default load strategy is `'skip'` (a failed file resolves as `undefined`), so `loadGameTextures`
 passes `strategy: 'throw'` and also validates the result; any failure — a texture, or the renderer
 itself failing to initialize because WebGL is unavailable — shows an error with a Retry button
-that boots again. Entity sprites are destroyed with their children when they leave the arena. The `Application`, canvas, and all its sprites/listeners are
+that boots again. Three details make that error path actually work, each found by a test that
+fakes a real 404 (`resilience.spec.ts`, run without the MSW service worker so `page.route` can
+see the request):
+
+- **Progress is ignored after a failure.** Pixi can still report progress for the other file
+  after one has failed; `PixiStage` drops it, otherwise it overwrote the error with a loading bar
+  that never finished.
+- **The overlay sits above the touch layer.** The full-screen touch controls render after the
+  stage, so the loading/error overlay has `zIndex: 5`; without it the Retry button could not be
+  clicked.
+- **Retry is verified end to end:** the test fails the texture, sees the error, restores the
+  file, clicks Retry and waits for a running game.
+
+Entity sprites are destroyed with their children when they leave the arena. The `Application`, canvas, and all its sprites/listeners are
 created and torn down inside a single `useEffect` in `PixiStage`, guarded by a `cancelled` flag
 checked after every `await` — this makes it safe under React's Strict Mode double-invoke in dev
 (mount → cleanup → mount never leaks a second canvas or a second set of event listeners, so a
@@ -211,6 +229,19 @@ Measured against the production build (`npm run build && npm run preview`) with 
 - **Accessibility was spot-checked**, not validated with a full screen-reader pass: labeled
   controls, an `aria-live` HUD region, and accessible form errors exist, but a dedicated a11y
   audit would likely find more to improve.
+- **The mock API needs a secure context.** Opening the dev server by LAN IP over plain http
+  (e.g. `http://192.168.x.x:5173` from a phone) isn't a secure context, so the MSW service worker
+  can't register: the app still renders and the game works, but Ranking and History show their
+  error state and finished matches stay Pending. To test on a phone use the published https URL.
+  For the same reason the match id comes from `createMatchId` (`ui/result/matchId.ts`), which
+  falls back to `crypto.getRandomValues` (then `Math.random`) when `crypto.randomUUID` is missing;
+  calling `randomUUID` directly froze the game at the end of a match on a phone over http.
+- **Not covered by tests** (checked by hand or by reading the code): audio playback; visual
+  appearance beyond the three win32 snapshots; real touch gestures beyond the joystick specs and
+  fullscreen; the WebGL-unavailable error path; the `networkError`, `clientError`, `reorder` and
+  `reset` scenarios; going back online and cross-tab sync; the `aria-live` announcements and the
+  pause dialog's focus handling; a background retry flipping Pending to Saved on screen. Pause on
+  blur and tab-hidden is tested by dispatching the events, not with a real focus change.
 - **Performance was measured on one machine over a short session.** A longer soak test and a
   profile on actual low-end mobile hardware would give more confidence for that audience
   specifically.

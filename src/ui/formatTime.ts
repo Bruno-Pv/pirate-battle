@@ -7,5 +7,5 @@ export function formatTime(seconds: number): string {
 
 /** Formats a timestamp as a short local date and time, e.g. "Oct 7, 2026, 3:04 PM". */
 export function formatDateTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+  return new Date(timestamp).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
 }

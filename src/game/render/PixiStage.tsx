@@ -54,11 +54,15 @@ export function PixiStage({ bridge, touchContainerRef }: PixiStageProps) {
       setLoadState({ status: 'loading', progress: 0 })
 
       let textures
+      // Pixi can still report progress for the other file after one has failed; that late
+      // event must not replace the error screen with a loading bar that never finishes.
+      let loadFailed = false
       try {
         textures = await loadGameTextures((progress) => {
-          if (!cancelled) setLoadState({ status: 'loading', progress })
+          if (!cancelled && !loadFailed) setLoadState({ status: 'loading', progress })
         })
       } catch (error) {
+        loadFailed = true
         if (!cancelled) {
           setLoadState({
             status: 'error',
@@ -343,6 +347,8 @@ const styles = {
   overlay: {
     position: 'absolute',
     inset: 0,
+    // Above the full-screen touch layer that follows the stage, or the Retry button can't be clicked.
+    zIndex: 5,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
