@@ -7,6 +7,8 @@ const ACTIONS: readonly TouchAction[] = ['fire-front', 'fire-left', 'fire-right'
 export interface TouchIntentSource {
   attach(container: HTMLElement): void
   detach(): void
+  /** Releases every pressed button (e.g. a pointerup was lost while paused). */
+  reset(): void
   getIntent(): PlayerIntent
 }
 
@@ -50,6 +52,10 @@ export function createTouchIntentSource(): TouchIntentSource {
       root?.removeEventListener('pointercancel', onPointerEnd)
       root?.removeEventListener('pointerleave', onPointerEnd)
       root = null
+      active.clear()
+      pointerToAction.clear()
+    },
+    reset() {
       active.clear()
       pointerToAction.clear()
     },

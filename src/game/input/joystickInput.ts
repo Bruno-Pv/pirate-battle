@@ -1,6 +1,5 @@
 import { gameConfig } from '../../config/gameConfig'
-import type { PlayerIntent } from './types'
-import { NEUTRAL_INTENT } from './types'
+import { NEUTRAL_INTENT, type PlayerIntent } from './types'
 
 /** Fraction of the joystick radius that is ignored, so a resting thumb doesn't drift the ship. */
 export const JOYSTICK_DEAD_ZONE = 0.15
@@ -13,6 +12,8 @@ const TWO_PI = Math.PI * 2
 export interface JoystickIntentSource {
   attach(container: HTMLElement): void
   detach(): void
+  /** Lets go of the stick; a finger still down must touch again to resume steering. */
+  reset(): void
   getIntent(): PlayerIntent
 }
 
@@ -89,6 +90,7 @@ export function createJoystickIntentSource(getHeading: () => number): JoystickIn
       knob = null
       reset()
     },
+    reset,
     getIntent() {
       if (pointerId === null || magnitude < JOYSTICK_DEAD_ZONE) return NEUTRAL_INTENT
 
@@ -110,6 +112,5 @@ export function createJoystickIntentSource(getHeading: () => number): JoystickIn
 
 /** Signed difference `target - current`, wrapped into (-π, π]. */
 function shortestAngleDiff(target: number, current: number): number {
-  const diff = (((target - current) % TWO_PI) + TWO_PI + Math.PI) % TWO_PI - Math.PI
-  return diff
+  return ((((target - current) % TWO_PI) + TWO_PI + Math.PI) % TWO_PI) - Math.PI
 }

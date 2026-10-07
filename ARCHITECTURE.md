@@ -4,7 +4,9 @@
 
 ```
 src/
-  config/        gameConfig.ts — typed, static balancing values
+  config/        gameConfig.ts (static balancing values), assetManifest.ts (every asset the game
+                 loads), storageKeys.ts (all localStorage keys)
+  lib/           small shared helpers (math)
   game/
     sim/         pure TypeScript: fixed-step loop, entities, collisions, AI, spawning, RNG
     render/      PixiJS: reads sim state and draws it (textures, pools, health bars, effects)
@@ -14,8 +16,19 @@ src/
   ui/            React screens: Menu, Options, Game (HUD/pause/touch), Result, Ranking, History
   api/           typed contracts, Axios client, TanStack Query hooks, pending-submission queue
   mocks/         MSW handlers, fixtures, scenario selector, localStorage-backed mock database
-tests/           Playwright (flows + visual snapshots)
+tests/           Playwright (core flows, extra behavior/mobile joystick specs, visual snapshots)
+scripts/         measure-performance.mjs — reproduces the numbers in reports/PERFORMANCE.md
+reports/         committed Playwright HTML report and performance measurements (with raw data)
+assets/          the full challenge asset pack; the build publishes only what the manifest lists
 ```
+
+## Published assets
+
+`assets/` keeps the whole challenge pack, but the production build copies only the files listed in
+`src/config/assetManifest.ts` (textures, sounds, `favicon.svg` and MSW's `mockServiceWorker.js`).
+The same manifest is what the game code loads from, and `vite.config.ts` reads it to decide what to
+emit, so a file the game uses can't be left out of the build. The dev server still serves
+everything in `assets/`.
 
 ## React ↔ PixiJS split
 
@@ -78,8 +91,8 @@ Textures are loaded once via `PIXI.Assets` with a progress callback shown as a l
 failed load shows a Retry button. The `Application`, canvas, and all its sprites/listeners are
 created and torn down inside a single `useEffect` in `PixiStage`, guarded by a `cancelled` flag
 checked after every `await` — this makes it safe under React's Strict Mode double-invoke in dev
-(mount → cleanup → mount never leaks a second canvas or a second set of event listeners; verified
-in Part 2 testing that a Strict Mode remount always leaves exactly one `<canvas>`).
+(mount → cleanup → mount never leaks a second canvas or a second set of event listeners, so a
+Strict Mode remount always leaves exactly one `<canvas>`).
 
 ## Persistence
 

@@ -22,6 +22,10 @@ export interface GameConfig {
     readonly collisionRadius: number
   }
   readonly enemies: {
+    /** Minimum time between two contact hits from the same (non-exploding) enemy. */
+    readonly contactDamageCooldownSeconds: number
+    /** How far ahead of itself an enemy looks for an island to steer around. */
+    readonly islandAvoidLookaheadPx: number
     readonly chaser: EnemyConfig
     readonly shooter: EnemyConfig & {
       readonly attackRangePx: number
@@ -35,6 +39,12 @@ export interface GameConfig {
     readonly intervalSeconds: number
     readonly minDistanceFromPlayerPx: number
     readonly maxAliveEnemies: number
+    /** Probability (0–1) that a spawned enemy is a Chaser; the rest are Shooters. */
+    readonly chaserProbability: number
+    /** Spawn points stay at least this far from the arena edges. */
+    readonly edgeMarginPx: number
+    /** Random placements tried before giving up and using the last candidate. */
+    readonly maxPlacementAttempts: number
   }
   readonly scoring: {
     readonly pointsPerKill: number
@@ -98,6 +108,8 @@ export const gameConfig: GameConfig = {
     collisionRadius: 6,
   },
   enemies: {
+    contactDamageCooldownSeconds: 1,
+    islandAvoidLookaheadPx: 50,
     chaser: {
       maxHp: 30,
       moveSpeed: 110,
@@ -119,6 +131,9 @@ export const gameConfig: GameConfig = {
     intervalSeconds: 4.5,
     minDistanceFromPlayerPx: 250,
     maxAliveEnemies: 4,
+    chaserProbability: 0.5,
+    edgeMarginPx: 40,
+    maxPlacementAttempts: 20,
   },
   scoring: {
     pointsPerKill: 1,

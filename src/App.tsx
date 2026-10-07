@@ -1,7 +1,8 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { queryClient } from './api/queryClient'
 import { submitMatchDurable, useCrossTabInvalidation, useFlushPendingSubmissions } from './api/queries'
+import { isPending, subscribeQueue } from './api/submissionQueue'
 import { setSoundMuted } from './game/audio/sounds'
 import { GameScreen } from './ui/game/GameScreen'
 import { loadOptions, saveOptions, type GameOptions } from './ui/options/optionsStore'
@@ -26,10 +27,26 @@ function Screens() {
   const [gameKey, setGameKey] = useState(0)
   const [options, setOptions] = useState<GameOptions>(() => loadOptions())
   const [lastResult, setLastResult] = useState<MatchResult | null>(() => loadLastResult())
-  const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>('saved')
+  const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>(() =>
+    lastResult && isPending(lastResult.matchId) ? 'pending' : 'saved',
+  )
+  const latestSubmittedId = useRef<string | null>(null)
+  const lastResultId = lastResult?.matchId ?? null
 
   useFlushPendingSubmissions()
   useCrossTabInvalidation()
+
+  // Background flushes (page load, `online`) change the queue without going through
+  // submitAndTrack, so keep the badge in sync with whether the shown result is still queued.
+  useEffect(() => {
+    if (lastResultId === null) return
+    return subscribeQueue(() => {
+      setSubmissionStatus((current) => {
+        if (current === 'saving') return current
+        return isPending(lastResultId) ? 'pending' : 'saved'
+      })
+    })
+  }, [lastResultId])
 
   useEffect(() => {
     setSoundMuted(!options.soundEnabled)
@@ -41,8 +58,11 @@ function Screens() {
   }
 
   function submitAndTrack(result: MatchResult) {
+    latestSubmittedId.current = result.matchId
     setSubmissionStatus('saving')
-    submitMatchDurable(result).then((success) => {
+    void submitMatchDurable(result).then((success) => {
+      // A newer match may have been submitted meanwhile; only the latest one owns the badge.
+      if (latestSubmittedId.current !== result.matchId) return
       setSubmissionStatus(success ? 'saved' : 'pending')
     })
   }
@@ -88,7 +108,15 @@ function Screens() {
     )
   }
 
-  return <MenuScreen options={options} onPlay={startGame} onOptions={() => setScreen('options')} />
+  return (
+    <MenuScreen
+      options={options}
+      lastResult={lastResult}
+      onPlay={startGame}
+      onOptions={() => setScreen('options')}
+      onViewLastResult={() => setScreen('result')}
+    />
+  )
 }
 
 export default App

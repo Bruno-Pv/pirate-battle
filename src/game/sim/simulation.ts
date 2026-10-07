@@ -1,13 +1,13 @@
 import { gameConfig } from '../../config/gameConfig'
 import type { PlayerIntent } from '../input/types'
 import { circlesOverlap, overlapsAnyIsland, resolvePosition, steerAroundIslands } from './collision'
+import { enemyConfig } from './enemyConfig'
 import { createRng } from './rng'
 import { pickEnemyKind, pickSpawnPosition } from './spawning'
-import type { Enemy, EnemyKind, GameEvent, MatchSettings, Projectile, ShipState, SimState, Vector2 } from './types'
+import type { Enemy, GameEvent, MatchSettings, Projectile, ShipState, SimState, Vector2 } from './types'
 import { add, addScaled, headingForward, headingRight, length, normalize, scale, subtract } from './vectors'
 
 const TWO_PI = Math.PI * 2
-const CONTACT_DAMAGE_COOLDOWN_SECONDS = 1
 
 export function createInitialState(seed: number, matchSettings: MatchSettings): SimState {
   return {
@@ -252,7 +252,7 @@ function resolveCombat(state: SimState, events: GameEvent[]): SimState {
   for (const projectile of state.projectiles) {
     if (projectile.faction !== 'player' || consumedProjectileIds.has(projectile.id)) continue
     for (const enemy of state.enemies) {
-      if (circlesOverlap(projectile.position, gameConfig.projectile.collisionRadius, enemy.position, enemyRadius(enemy.kind))) {
+      if (circlesOverlap(projectile.position, gameConfig.projectile.collisionRadius, enemy.position, enemyConfig(enemy.kind).collisionRadius)) {
         consumedProjectileIds.add(projectile.id)
         enemyHits.set(enemy.id, (enemyHits.get(enemy.id) ?? 0) + projectile.damage)
         break
@@ -287,7 +287,7 @@ function resolveCombat(state: SimState, events: GameEvent[]): SimState {
 
   const enemies: Enemy[] = []
   for (const enemy of afterWeaponDamage) {
-    const radius = enemyRadius(enemy.kind)
+    const radius = enemyConfig(enemy.kind).collisionRadius
     const touchingPlayer = circlesOverlap(enemy.position, radius, state.player.position, gameConfig.player.collisionRadius)
 
     if (!touchingPlayer || enemy.contactCooldown > 0) {
@@ -295,15 +295,14 @@ function resolveCombat(state: SimState, events: GameEvent[]): SimState {
       continue
     }
 
-    const contactCfg = enemy.kind === 'chaser' ? gameConfig.enemies.chaser : gameConfig.enemies.shooter
-    playerDamage += contactCfg.contactDamage
+    playerDamage += enemyConfig(enemy.kind).contactDamage
 
     if (enemy.kind === 'chaser') {
       events.push({ type: 'enemyDestroyed', position: enemy.position, cause: 'contact' })
       continue // self-destructs on impact, no score awarded
     }
 
-    enemies.push({ ...enemy, contactCooldown: CONTACT_DAMAGE_COOLDOWN_SECONDS })
+    enemies.push({ ...enemy, contactCooldown: gameConfig.enemies.contactDamageCooldownSeconds })
   }
 
   const projectiles = state.projectiles.filter((projectile) => !consumedProjectileIds.has(projectile.id))
@@ -327,14 +326,14 @@ function stepSpawning(state: SimState, dt: number): SimState {
   }
 
   const [kind, afterKind] = pickEnemyKind(state.rng)
-  const [position, afterPosition] = pickSpawnPosition(afterKind, state.player.position, enemyRadius(kind))
+  const [position, afterPosition] = pickSpawnPosition(afterKind, state.player.position, enemyConfig(kind).collisionRadius)
 
   const enemy: Enemy = {
     id: state.nextEntityId,
     kind,
     position,
     heading: 0,
-    hp: enemyMaxHp(kind),
+    hp: enemyConfig(kind).maxHp,
     fireCooldown: gameConfig.enemies.shooter.fireCooldownSeconds,
     contactCooldown: 0,
   }
@@ -346,14 +345,6 @@ function stepSpawning(state: SimState, dt: number): SimState {
     spawnCooldown: state.matchSettings.spawnIntervalSeconds,
     rng: afterPosition,
   }
-}
-
-function enemyRadius(kind: EnemyKind): number {
-  return kind === 'chaser' ? gameConfig.enemies.chaser.collisionRadius : gameConfig.enemies.shooter.collisionRadius
-}
-
-function enemyMaxHp(kind: EnemyKind): number {
-  return kind === 'chaser' ? gameConfig.enemies.chaser.maxHp : gameConfig.enemies.shooter.maxHp
 }
 
 function isInsideArena(p: Vector2): boolean {

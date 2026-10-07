@@ -1,6 +1,6 @@
 import type { PlayerIntent } from './types'
 
-/** Merges intents from multiple sources (keyboard + touch): any active source wins. */
+/** Merges intents from multiple sources (keyboard, touch buttons, virtual joystick): any active source wins. */
 export function combineIntents(a: PlayerIntent, b: PlayerIntent): PlayerIntent {
   return {
     thrust: a.thrust !== 0 ? a.thrust : b.thrust,

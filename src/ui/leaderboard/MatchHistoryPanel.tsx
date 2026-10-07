@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 import { useMatchHistory } from '../../api/queries'
-import { formatTime } from './format'
+import { formatTime } from '../formatTime'
 import { Pagination } from './Pagination'
 import { QueryState } from './QueryState'
 

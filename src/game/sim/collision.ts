@@ -1,4 +1,5 @@
 import { gameConfig } from '../../config/gameConfig'
+import { clamp } from '../../lib/math'
 import { islandPlacements } from '../arenaLayout'
 import type { Vector2 } from './types'
 import { normalize } from './vectors'
@@ -17,8 +18,6 @@ export function overlapsAnyIsland(p: Vector2, radius: number): boolean {
   return islandPlacements.some((island) => circlesOverlap(p, radius, island, island.collisionRadius))
 }
 
-const AVOID_LOOKAHEAD_PX = 50
-
 /**
  * Deflects a desired travel direction around the nearest island blocking it, so seeking entities
  * slide along the obstacle's edge instead of pushing straight into it and stalling.
@@ -29,7 +28,7 @@ export function steerAroundIslands(position: Vector2, desiredDir: Vector2, radiu
   for (const island of islandPlacements) {
     const toIsland = { x: island.x - position.x, y: island.y - position.y }
     const dist = Math.hypot(toIsland.x, toIsland.y)
-    const combined = radius + island.collisionRadius + AVOID_LOOKAHEAD_PX
+    const combined = radius + island.collisionRadius + gameConfig.enemies.islandAvoidLookaheadPx
     if (dist >= combined) continue
 
     const alignment = (toIsland.x * desiredDir.x + toIsland.y * desiredDir.y) / (dist || 1)
@@ -84,8 +83,4 @@ function resolveIslandCollisions(p: Vector2, radius: number): Vector2 {
     result = { x: island.x + dx * scale, y: island.y + dy * scale }
   }
   return result
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max)
 }

@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { useRanking } from '../../api/queries'
 import type { MatchConfig } from '../../api/types'
-import { formatTime } from './format'
+import { formatTime } from '../formatTime'
 import { Pagination } from './Pagination'
 import { QueryState } from './QueryState'
 

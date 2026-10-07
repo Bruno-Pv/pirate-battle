@@ -7,6 +7,16 @@ import tseslint from 'typescript-eslint'
 export default tseslint.config(
   { ignores: ['dist', 'playwright-report', 'test-results', 'assets/mockServiceWorker.js'] },
   {
+    // Node scripts (scripts/*.mjs, this config). The measurement script also runs callbacks
+    // inside the browser page, hence the browser globals.
+    extends: [js.configs.recommended],
+    files: ['**/*.{js,mjs}'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      globals: { ...globals.node, ...globals.browser },
+    },
+  },
+  {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
     languageOptions: {

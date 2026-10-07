@@ -86,6 +86,13 @@ export function GameScreen({ options, onGameEnd, onQuit }: GameScreenProps) {
     }
   }, [isPortraitMobile, bridge])
 
+  // Callbacks and the player name live in a ref so a parent re-render during the end delay
+  // can't re-run the effect below (which would restart the timer and replay the sound).
+  const endContext = useRef({ onGameEnd, playerName: options.playerName })
+  useEffect(() => {
+    endContext.current = { onGameEnd, playerName: options.playerName }
+  })
+
   useEffect(() => {
     if (snapshot.status !== 'ended') return
 
@@ -94,12 +101,12 @@ export function GameScreen({ options, onGameEnd, onQuit }: GameScreenProps) {
     playSound(survived ? 'gameComplete' : 'gameOver', 0.6)
 
     const timeoutId = window.setTimeout(() => {
-      onGameEnd({
+      endContext.current.onGameEnd({
         matchId: crypto.randomUUID(),
         score: state.score,
         survived,
         elapsedSeconds: state.elapsedSeconds,
-        playerName: options.playerName,
+        playerName: endContext.current.playerName,
         completedAt: Date.now(),
         config: {
           durationSeconds: state.matchSettings.durationSeconds,
@@ -109,7 +116,7 @@ export function GameScreen({ options, onGameEnd, onQuit }: GameScreenProps) {
     }, GAME_END_DELAY_MS)
 
     return () => window.clearTimeout(timeoutId)
-  }, [snapshot.status, bridge, onGameEnd, options.playerName])
+  }, [snapshot.status, bridge])
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100dvh' }}>

@@ -1,13 +1,13 @@
+import { STORAGE_KEYS } from '../../config/storageKeys'
 import type { MatchRecord } from '../../api/types'
 
 /** The Result screen shows exactly the record that gets submitted to the ranking API. */
 export type MatchResult = MatchRecord
 
-const STORAGE_KEY = 'pirate-battle:last-result'
 
 export function loadLastResult(): MatchResult | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEYS.lastResult)
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<MatchResult>
     if (
@@ -30,7 +30,7 @@ export function loadLastResult(): MatchResult | null {
 
 export function saveLastResult(result: MatchResult): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(result))
+    localStorage.setItem(STORAGE_KEYS.lastResult, JSON.stringify(result))
   } catch {
     // localStorage can be unavailable; the result just won't survive a refresh.
   }

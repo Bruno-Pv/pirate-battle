@@ -1,11 +1,10 @@
+import { STORAGE_KEYS } from '../config/storageKeys'
 import type { MatchConfig, MatchRecord, PaginatedResult } from '../api/types'
 import { matchFixtures } from './fixtures'
 
-const STORAGE_KEY = 'pirate-battle:mock-matches'
-
 export function readMatches(): MatchRecord[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEYS.mockMatches)
     if (!raw) {
       writeMatches(matchFixtures as MatchRecord[])
       return [...matchFixtures]
@@ -19,7 +18,7 @@ export function readMatches(): MatchRecord[] {
 
 export function writeMatches(matches: readonly MatchRecord[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(matches))
+    localStorage.setItem(STORAGE_KEYS.mockMatches, JSON.stringify(matches))
   } catch {
     // localStorage can be unavailable; the mock "server" just won't persist between reloads.
   }

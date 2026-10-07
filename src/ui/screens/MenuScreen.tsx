@@ -1,17 +1,20 @@
 import { useState, type CSSProperties } from 'react'
 import type { GameOptions } from '../options/optionsStore'
+import type { MatchResult } from '../result/matchResult'
 import { MatchHistoryPanel } from '../leaderboard/MatchHistoryPanel'
 import { RankingPanel } from '../leaderboard/RankingPanel'
 
 interface MenuScreenProps {
   options: GameOptions
+  lastResult: MatchResult | null
   onPlay: () => void
   onOptions: () => void
+  onViewLastResult: () => void
 }
 
 type Tab = 'play' | 'how-to-play' | 'ranking' | 'history'
 
-export function MenuScreen({ options, onPlay, onOptions }: MenuScreenProps) {
+export function MenuScreen({ options, lastResult, onPlay, onOptions, onViewLastResult }: MenuScreenProps) {
   const [tab, setTab] = useState<Tab>('play')
 
   return (
@@ -41,6 +44,12 @@ export function MenuScreen({ options, onPlay, onOptions }: MenuScreenProps) {
           <button type="button" style={styles.secondaryButton} onClick={onOptions}>
             Options
           </button>
+          {lastResult && (
+            <button type="button" style={styles.linkButton} onClick={onViewLastResult}>
+              Last result: {lastResult.score} {lastResult.score === 1 ? 'point' : 'points'} ·{' '}
+              {lastResult.survived ? 'survived' : 'sunk'}
+            </button>
+          )}
         </div>
       )}
 
@@ -143,6 +152,15 @@ const styles = {
     border: '1px solid rgba(255,255,255,0.3)',
     borderRadius: 8,
     cursor: 'pointer',
+  },
+  linkButton: {
+    padding: '6px 0',
+    fontSize: 13,
+    color: '#9fb0c0',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    textDecoration: 'underline',
   },
   instructions: {
     margin: 0,

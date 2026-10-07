@@ -1,10 +1,9 @@
 import type { CSSProperties } from 'react'
 import type { HudSnapshot } from '../../game/bridge/gameBridge'
+import { formatTime } from '../formatTime'
 
 export function Hud({ snapshot }: { snapshot: HudSnapshot }) {
-  const minutes = Math.floor(snapshot.timeRemaining / 60)
-  const seconds = snapshot.timeRemaining % 60
-  const timeLabel = `${minutes}:${seconds.toString().padStart(2, '0')}`
+  const timeLabel = formatTime(snapshot.timeRemaining)
   const hpFraction = snapshot.maxHp > 0 ? snapshot.hp / snapshot.maxHp : 0
 
   return (

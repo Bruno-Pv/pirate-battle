@@ -1,12 +1,12 @@
 import type { Clock } from './clock'
 
+/** Caps catch-up work per rendered frame so one slow frame can't snowball into a "spiral of death". */
+const MAX_STEPS_PER_FRAME = 5
+
 export interface FixedStepLoopOptions {
   readonly stepSeconds: number
   readonly clock: Clock
   readonly onFixedStep: (dt: number) => void
-  readonly maxStepsPerFrame?: number
-  readonly requestFrame?: (callback: (time: number) => void) => number
-  readonly cancelFrame?: (handle: number) => void
 }
 
 export interface FixedStepLoop {
@@ -14,16 +14,7 @@ export interface FixedStepLoop {
   stop(): void
 }
 
-export function createFixedStepLoop(options: FixedStepLoopOptions): FixedStepLoop {
-  const {
-    stepSeconds,
-    clock,
-    onFixedStep,
-    maxStepsPerFrame = 5,
-    requestFrame = (callback) => requestAnimationFrame(callback),
-    cancelFrame = (handle) => cancelAnimationFrame(handle),
-  } = options
-
+export function createFixedStepLoop({ stepSeconds, clock, onFixedStep }: FixedStepLoopOptions): FixedStepLoop {
   let accumulator = 0
   let lastTime: number | null = null
   let frameHandle: number | null = null
@@ -38,16 +29,16 @@ export function createFixedStepLoop(options: FixedStepLoopOptions): FixedStepLoo
     accumulator += elapsed
 
     let steps = 0
-    while (accumulator >= stepSeconds && steps < maxStepsPerFrame) {
+    while (accumulator >= stepSeconds && steps < MAX_STEPS_PER_FRAME) {
       onFixedStep(stepSeconds)
       accumulator -= stepSeconds
       steps += 1
     }
-    if (steps === maxStepsPerFrame) {
+    if (steps === MAX_STEPS_PER_FRAME) {
       accumulator = 0
     }
 
-    frameHandle = requestFrame(tick)
+    frameHandle = requestAnimationFrame(tick)
   }
 
   return {
@@ -56,12 +47,12 @@ export function createFixedStepLoop(options: FixedStepLoopOptions): FixedStepLoo
       running = true
       lastTime = null
       accumulator = 0
-      frameHandle = requestFrame(tick)
+      frameHandle = requestAnimationFrame(tick)
     },
     stop() {
       running = false
       if (frameHandle !== null) {
-        cancelFrame(frameHandle)
+        cancelAnimationFrame(frameHandle)
         frameHandle = null
       }
     },

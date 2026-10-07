@@ -1,17 +1,4 @@
-const SOUND_URLS = {
-  cannonFirePlayer: '/sounds/cannon_fire_1.wav',
-  cannonFireEnemy: '/sounds/cannon_fire_2.wav',
-  explosion: '/sounds/ship_explosion_1.wav',
-  hit: '/sounds/ship_wood_hit_1.wav',
-  gameStart: '/sounds/game_start.wav',
-  gameOver: '/sounds/game_over.wav',
-  gameComplete: '/sounds/game_complete.wav',
-  scorePoint: '/sounds/score_point.wav',
-  pause: '/sounds/game_pause.wav',
-  resume: '/sounds/game_resume.wav',
-  uiClick: '/sounds/ui_click.wav',
-  uiHover: '/sounds/ui_hover.wav',
-} as const
+import { SOUND_URLS } from '../../config/assetManifest'
 
 export type SoundName = keyof typeof SOUND_URLS
 
@@ -20,10 +7,6 @@ const cache = new Map<SoundName, HTMLAudioElement>()
 
 export function setSoundMuted(value: boolean): void {
   muted = value
-}
-
-export function isSoundMuted(): boolean {
-  return muted
 }
 
 export function playSound(name: SoundName, volume = 1): void {

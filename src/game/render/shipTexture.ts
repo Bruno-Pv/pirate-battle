@@ -6,10 +6,7 @@ import { Rectangle, Texture } from 'pixi.js'
 const SHIP_FRAMES = {
   white: [new Rectangle(408, 0, 66, 113), new Rectangle(0, 192, 66, 113), new Rectangle(204, 230, 66, 113)],
   black: [new Rectangle(408, 115, 66, 113), new Rectangle(0, 307, 66, 113), new Rectangle(204, 0, 66, 113)],
-  red: [new Rectangle(204, 115, 66, 113), new Rectangle(0, 77, 66, 113), new Rectangle(136, 345, 66, 113)],
-  green: [new Rectangle(68, 192, 66, 113), new Rectangle(340, 345, 66, 113), new Rectangle(136, 230, 66, 113)],
   blue: [new Rectangle(68, 77, 66, 113), new Rectangle(340, 230, 66, 113), new Rectangle(136, 115, 66, 113)],
-  yellow: [new Rectangle(68, 307, 66, 113), new Rectangle(340, 115, 66, 113), new Rectangle(136, 0, 66, 113)],
 } as const satisfies Record<string, readonly [Rectangle, Rectangle, Rectangle]>
 
 export type ShipColor = keyof typeof SHIP_FRAMES

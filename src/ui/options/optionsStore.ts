@@ -1,4 +1,6 @@
 import { gameConfig } from '../../config/gameConfig'
+import { STORAGE_KEYS } from '../../config/storageKeys'
+import { clamp } from '../../lib/math'
 
 export interface GameOptions {
   readonly playerName: string
@@ -7,7 +9,6 @@ export interface GameOptions {
   readonly spawnIntervalSeconds: number
 }
 
-const STORAGE_KEY = 'pirate-battle:options'
 export const MAX_NAME_LENGTH = 20
 
 // Documented bounds for the two gameplay-affecting options, enforced on every save/load:
@@ -31,13 +32,9 @@ export function sanitizePlayerName(value: string): string {
   return trimmed.length > 0 ? trimmed : DEFAULT_OPTIONS.playerName
 }
 
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max)
-}
-
 export function loadOptions(): GameOptions {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEYS.options)
     if (!raw) return DEFAULT_OPTIONS
 
     const parsed = JSON.parse(raw) as Partial<GameOptions>
@@ -60,7 +57,7 @@ export function loadOptions(): GameOptions {
 
 export function saveOptions(options: GameOptions): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(options))
+    localStorage.setItem(STORAGE_KEYS.options, JSON.stringify(options))
   } catch {
     // localStorage can be unavailable (private browsing, quota exceeded); options just won't persist.
   }

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import { STORAGE_KEYS } from '../config/storageKeys'
 import { fetchMatchHistory, fetchRanking, submitMatch } from './matches'
 import { getMyMatchIds, recordMyMatch } from './myMatches'
 import { QUERY_KEYS, queryClient } from './queryClient'
@@ -7,8 +8,6 @@ import { dequeue, enqueue, readQueue } from './submissionQueue'
 import type { MatchConfig, MatchRecord } from './types'
 
 const PAGE_SIZE = 5
-const MATCHES_STORAGE_KEY = 'pirate-battle:mock-matches'
-const MY_MATCH_IDS_STORAGE_KEY = 'pirate-battle:my-match-ids'
 
 export function useRanking(config: MatchConfig, page: number) {
   return useQuery({
@@ -78,7 +77,7 @@ export function useFlushPendingSubmissions(): void {
 export function useCrossTabInvalidation(): void {
   useEffect(() => {
     function onStorage(event: StorageEvent) {
-      if (event.key === MATCHES_STORAGE_KEY || event.key === MY_MATCH_IDS_STORAGE_KEY) {
+      if (event.key === STORAGE_KEYS.mockMatches || event.key === STORAGE_KEYS.myMatchIds) {
         invalidateMatchQueries()
       }
     }

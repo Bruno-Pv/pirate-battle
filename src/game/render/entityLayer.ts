@@ -24,7 +24,8 @@ export function syncEntitySprites<T extends { id: number }, V extends Container>
   for (const [id, sprite] of pool) {
     if (seen.has(id)) continue
     container.removeChild(sprite)
-    sprite.destroy()
+    // Children (health bar, hull sprite) are owned by the ship; textures are shared, so keep them.
+    sprite.destroy({ children: true })
     pool.delete(id)
   }
 }

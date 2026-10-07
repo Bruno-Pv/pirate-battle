@@ -8,6 +8,7 @@ import { createJoystickIntentSource } from '../input/joystickInput'
 import { createKeyboardIntentSource } from '../input/keyboardInput'
 import { createTouchIntentSource } from '../input/touchInput'
 import { systemClock } from '../sim/clock'
+import { enemyConfig } from '../sim/enemyConfig'
 import { createFixedStepLoop } from '../sim/fixedStepLoop'
 import { stepSimulation } from '../sim/simulation'
 import { createTestClock } from '../sim/testClock'
@@ -17,12 +18,14 @@ import { isTestMode } from '../testMode'
 import { createArenaLayer } from './arena'
 import { createEffectTextures } from './effectTextures'
 import { createEffectsLayer } from './effectsLayer'
-import { createEnemySprite, syncEnemySprite, type EnemySprite } from './enemySprite'
 import { syncEntitySprites } from './entityLayer'
-import { createPlayerSprite, syncPlayerSprite } from './playerSprite'
 import { createProjectileSprite, createProjectileTexture, syncProjectileSprite } from './projectileSprite'
+import { createShipSprite, syncShipSprite, type ShipSprite } from './shipSprite'
 import { createHullTextureSet } from './shipTexture'
 import { loadGameTextures } from './textures'
+
+const PLAYER_SPRITE = { scale: 1, healthBarOffsetY: -70 } as const
+const ENEMY_SPRITE = { scale: 0.8, healthBarOffsetY: -56 } as const
 
 type LoadState =
   | { status: 'loading'; progress: number }
@@ -67,13 +70,29 @@ export function PixiStage({ bridge, touchContainerRef }: PixiStageProps) {
       if (cancelled) return
 
       const nextApp = new Application()
-      await nextApp.init({
-        resizeTo: host,
-        backgroundColor: 0x0b1a2b,
-        antialias: true,
-        resolution: window.devicePixelRatio || 1,
-        autoDensity: true,
-      })
+      try {
+        await nextApp.init({
+          resizeTo: host,
+          backgroundColor: 0x0b1a2b,
+          antialias: true,
+          resolution: window.devicePixelRatio || 1,
+          autoDensity: true,
+        })
+      } catch (error) {
+        try {
+          nextApp.destroy(true, { children: true, texture: false })
+        } catch {
+          // A renderer that never initialized may not be destroyable; nothing else to release.
+        }
+        if (!cancelled) {
+          const detail = error instanceof Error ? ` (${error.message})` : ''
+          setLoadState({
+            status: 'error',
+            message: `Could not start the graphics renderer. WebGL may be unavailable${detail}`,
+          })
+        }
+        return
+      }
       if (cancelled) {
         nextApp.destroy(true, { children: true, texture: false })
         return
@@ -97,7 +116,12 @@ export function PixiStage({ bridge, touchContainerRef }: PixiStageProps) {
       const effectTextures = createEffectTextures(textures.ships)
       const effectsLayer = createEffectsLayer()
 
-      const playerSprite = createPlayerSprite(playerHull, effectTextures.damageFire)
+      const playerSprite = createShipSprite({
+        ...PLAYER_SPRITE,
+        label: 'player',
+        hullStages: playerHull,
+        damageFireTexture: effectTextures.damageFire,
+      })
       world.addChild(playerSprite)
       world.addChild(effectsLayer.container)
 
@@ -159,14 +183,31 @@ export function PixiStage({ bridge, touchContainerRef }: PixiStageProps) {
         window.__game = hook
       }
 
+      // Held keys/buttons must not survive a pause or a lost focus: the matching keyup/pointerup
+      // may never reach the page, which would leave the ship moving or firing after Resume.
+      function resetInputs() {
+        keyboard.reset()
+        touch.reset()
+        joystick.reset()
+      }
+      function onVisibilityChange() {
+        if (document.hidden) resetInputs()
+      }
+      window.addEventListener('blur', resetInputs)
+      document.addEventListener('visibilitychange', onVisibilityChange)
+
       function applyPaused(paused: boolean) {
-        if (paused) loop.stop()
-        else loop.start()
+        if (paused) {
+          loop.stop()
+          resetInputs()
+        } else {
+          loop.start()
+        }
       }
       applyPaused(bridge.getPaused())
       const unsubscribePause = bridge.subscribe(() => applyPaused(bridge.getPaused()))
 
-      const enemySprites = new Map<number, EnemySprite>()
+      const enemySprites = new Map<number, ShipSprite>()
       const projectileSprites = new Map<number, Sprite>()
 
       function handleEvent(event: GameEvent) {
@@ -192,6 +233,8 @@ export function PixiStage({ bridge, touchContainerRef }: PixiStageProps) {
               endScale: 1.3,
             })
             playSound('explosion', 0.7)
+            // Only kills by the player's weapons score; chasers that ram the player don't.
+            if (event.cause === 'weapon') playSound('scorePoint', 0.6)
             break
           case 'playerHit':
             playSound('hit', 0.6)
@@ -201,13 +244,19 @@ export function PixiStage({ bridge, touchContainerRef }: PixiStageProps) {
 
       function syncFrame() {
         const state = bridge.getSimState()
-        syncPlayerSprite(playerSprite, state.player)
-        syncEntitySprites<Enemy, EnemySprite>(
+        syncShipSprite(playerSprite, state.player, state.player.hp / gameConfig.player.maxHp)
+        syncEntitySprites<Enemy, ShipSprite>(
           enemyLayer,
           state.enemies,
           enemySprites,
-          (enemy) => createEnemySprite(enemy.kind === 'chaser' ? chaserHull : shooterHull, effectTextures.damageFire, enemy.kind),
-          syncEnemySprite,
+          (enemy) =>
+            createShipSprite({
+              ...ENEMY_SPRITE,
+              label: `enemy-${enemy.kind}`,
+              hullStages: enemy.kind === 'chaser' ? chaserHull : shooterHull,
+              damageFireTexture: effectTextures.damageFire,
+            }),
+          (sprite, enemy) => syncShipSprite(sprite, enemy, enemy.hp / enemyConfig(enemy.kind).maxHp),
         )
         syncEntitySprites<Projectile, Sprite>(
           projectileLayer,
@@ -228,6 +277,8 @@ export function PixiStage({ bridge, touchContainerRef }: PixiStageProps) {
       cleanupGameplay = () => {
         loop.stop()
         unsubscribePause()
+        window.removeEventListener('blur', resetInputs)
+        document.removeEventListener('visibilitychange', onVisibilityChange)
         keyboard.detach()
         touch.detach()
         joystick.detach()

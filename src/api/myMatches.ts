@@ -1,10 +1,10 @@
-const STORAGE_KEY = 'pirate-battle:my-match-ids'
+import { STORAGE_KEYS } from '../config/storageKeys'
 
 /** IDs of matches this browser actually played (as opposed to the seeded fixtures), so the
  * History tab can show only the current captain's own matches. */
 export function getMyMatchIds(): string[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEYS.myMatchIds)
     if (!raw) return []
     const parsed = JSON.parse(raw) as unknown
     return Array.isArray(parsed) ? (parsed as string[]) : []
@@ -17,7 +17,7 @@ export function recordMyMatch(matchId: string): void {
   try {
     const ids = getMyMatchIds()
     if (ids.includes(matchId)) return
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids, matchId]))
+    localStorage.setItem(STORAGE_KEYS.myMatchIds, JSON.stringify([...ids, matchId]))
   } catch {
     // localStorage can be unavailable; the match will just show up under Ranking only.
   }

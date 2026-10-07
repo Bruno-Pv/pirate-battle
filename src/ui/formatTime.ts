@@ -1,3 +1,4 @@
+/** Formats a duration in seconds as `m:ss`. */
 export function formatTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60)
   const rest = Math.floor(seconds % 60)

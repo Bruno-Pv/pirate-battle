@@ -11,6 +11,8 @@ const FIRE_RIGHT_KEYS = new Set(['KeyE'])
 export interface KeyboardIntentSource {
   attach(): void
   detach(): void
+  /** Forgets every held key (e.g. a keyup was lost while the window was unfocused). */
+  reset(): void
   getIntent(): PlayerIntent
 }
 
@@ -40,6 +42,9 @@ export function createKeyboardIntentSource(target: Window = window): KeyboardInt
     detach() {
       target.removeEventListener('keydown', onKeyDown)
       target.removeEventListener('keyup', onKeyUp)
+      pressed.clear()
+    },
+    reset() {
       pressed.clear()
     },
     getIntent() {

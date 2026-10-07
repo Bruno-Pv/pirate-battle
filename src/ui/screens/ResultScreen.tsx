@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import type { MatchResult } from '../result/matchResult'
 import type { SubmissionStatus } from '../result/submissionStatus'
+import { formatTime } from '../formatTime'
 
 interface ResultScreenProps {
   result: MatchResult
@@ -11,9 +12,6 @@ interface ResultScreenProps {
 }
 
 export function ResultScreen({ result, submissionStatus, onRetrySubmission, onPlayAgain, onMenu }: ResultScreenProps) {
-  const minutes = Math.floor(result.elapsedSeconds / 60)
-  const seconds = Math.floor(result.elapsedSeconds % 60)
-
   return (
     <div style={styles.screen}>
       <h1 style={styles.title}>{result.survived ? 'Match Complete' : 'Ship Sunk'}</h1>
@@ -26,7 +24,7 @@ export function ResultScreen({ result, submissionStatus, onRetrySubmission, onPl
 
       <div style={styles.stats}>
         <Stat label="Score" value={String(result.score)} />
-        <Stat label="Time survived" value={`${minutes}:${seconds.toString().padStart(2, '0')}`} />
+        <Stat label="Time survived" value={formatTime(result.elapsedSeconds)} />
       </div>
 
       <SubmissionBadge status={submissionStatus} onRetry={onRetrySubmission} />
@@ -36,7 +34,7 @@ export function ResultScreen({ result, submissionStatus, onRetrySubmission, onPl
           Play Again
         </button>
         <button type="button" style={styles.secondaryButton} onClick={onMenu}>
-          Menu
+          Main Menu
         </button>
       </div>
     </div>
