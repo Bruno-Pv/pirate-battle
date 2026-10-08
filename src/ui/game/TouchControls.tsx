@@ -1,22 +1,31 @@
 import { forwardRef, type CSSProperties } from 'react'
 
-export const TouchControls = forwardRef<HTMLDivElement>(function TouchControls(_props, ref) {
+/** The container always exists (the input sources attach to it once); the controls inside it only
+ * render when `enabled`, i.e. on devices with a touch screen. */
+export const TouchControls = forwardRef<HTMLDivElement, { enabled: boolean }>(function TouchControls(
+  { enabled },
+  ref,
+) {
   return (
-    <div ref={ref} style={styles.root}>
-      <div
-        data-joystick
-        role="group"
-        aria-label="Movement joystick"
-        style={styles.joystick}
-        onContextMenu={(event) => event.preventDefault()}
-      >
-        <div data-joystick-knob style={styles.knob} />
-      </div>
-      <div style={styles.fireCluster}>
-        <TouchButton action="fire-left" style={styles.fireLeft} label="L" />
-        <TouchButton action="fire-front" style={styles.fireFront} label="●" />
-        <TouchButton action="fire-right" style={styles.fireRight} label="R" />
-      </div>
+    <div ref={ref} style={enabled ? styles.root : styles.rootHidden}>
+      {enabled && (
+        <>
+          <div
+            data-joystick
+            role="group"
+            aria-label="Movement joystick"
+            style={styles.joystick}
+            onContextMenu={(event) => event.preventDefault()}
+          >
+            <div data-joystick-knob style={styles.knob} />
+          </div>
+          <div style={styles.fireCluster}>
+            <TouchButton action="fire-left" style={styles.fireLeft} label="L" />
+            <TouchButton action="fire-front" style={styles.fireFront} label="●" />
+            <TouchButton action="fire-right" style={styles.fireRight} label="R" />
+          </div>
+        </>
+      )}
     </div>
   )
 })
@@ -43,6 +52,9 @@ const styles = {
     position: 'absolute',
     inset: 0,
     touchAction: 'none',
+  },
+  rootHidden: {
+    display: 'none',
   },
   button: {
     position: 'absolute',

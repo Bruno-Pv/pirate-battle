@@ -221,9 +221,11 @@ Measured against the production build (`npm run build && npm run preview`) with 
   `enemies.islandAvoidLookaheadPx`), so rebalancing doesn't touch the simulation code.
 - **Visual damage has 3 discrete stages**, not continuous deformation, and reuses the sheet's
   existing hull art rather than custom damage sprites.
-- **Touch controls always render**, even on desktop (they're unobtrusive and double as a quick
-  way to test touch input with a mouse, but a production app would likely hide them behind a
-  touch-capability check).
+- **Touch controls follow input capability.** `useHasTouch` watches `(any-pointer: coarse)`, so the
+  joystick and fire buttons render only where a touch screen exists. The container they live in
+  always exists (the input sources attach to it once) and the joystick looks up its elements when a
+  touch starts, so the controls can appear later without re-creating the renderer. A laptop with a
+  touch screen gets them too; a desktop with only a mouse does not.
 - **No account system.** A captain is just a typed display name with no uniqueness check —
   acceptable for a local leaderboard, not for a real multi-user one.
 - **Accessibility was spot-checked**, not validated with a full screen-reader pass: labeled

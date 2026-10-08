@@ -13,6 +13,7 @@ import { PauseOverlay } from './PauseOverlay'
 import { createMatchId } from '../result/matchId'
 import { RotateDeviceOverlay } from './RotateDeviceOverlay'
 import { TouchControls } from './TouchControls'
+import { useHasTouch } from './useHasTouch'
 import { useIsPortraitMobile } from './useIsPortraitMobile'
 
 const GAME_END_DELAY_MS = 1200
@@ -35,6 +36,7 @@ export function GameScreen({ options, onGameEnd, onQuit }: GameScreenProps) {
   const touchContainerRef = useRef<HTMLDivElement | null>(null)
   const snapshot = useGameSnapshot(bridge)
   const isPortraitMobile = useIsPortraitMobile()
+  const hasTouch = useHasTouch()
 
   useEffect(() => {
     playSound('gameStart', 0.6)
@@ -123,7 +125,7 @@ export function GameScreen({ options, onGameEnd, onQuit }: GameScreenProps) {
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100dvh' }}>
       <PixiStage bridge={bridge} touchContainerRef={touchContainerRef} />
       <Hud snapshot={snapshot} />
-      <TouchControls ref={touchContainerRef} />
+      <TouchControls ref={touchContainerRef} enabled={hasTouch} />
       <FullscreenButton />
       {isPortraitMobile ? (
         <RotateDeviceOverlay />

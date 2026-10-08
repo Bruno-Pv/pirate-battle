@@ -56,6 +56,9 @@ export function createJoystickIntentSource(getHeading: () => number): JoystickIn
   function onPointerDown(event: PointerEvent) {
     if (pointerId !== null || !(event.target instanceof HTMLElement)) return
     if (!event.target.closest('[data-joystick]')) return
+    // Looked up on use: the controls may be mounted after attach() (touch detected later).
+    base = root?.querySelector<HTMLElement>('[data-joystick]') ?? null
+    knob = root?.querySelector<HTMLElement>('[data-joystick-knob]') ?? null
     event.preventDefault()
     pointerId = event.pointerId
     base?.setPointerCapture?.(event.pointerId)
@@ -73,8 +76,6 @@ export function createJoystickIntentSource(getHeading: () => number): JoystickIn
   return {
     attach(container) {
       root = container
-      base = container.querySelector<HTMLElement>('[data-joystick]')
-      knob = container.querySelector<HTMLElement>('[data-joystick-knob]')
       root.addEventListener('pointerdown', onPointerDown)
       root.addEventListener('pointermove', onPointerMove)
       root.addEventListener('pointerup', onPointerEnd)

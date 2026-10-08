@@ -50,6 +50,11 @@ npx playwright test --update-snapshots
 | Left / right broadside | `Q` / `E` | Left / right fire buttons |
 | Pause / Resume | `Escape` | Pause automatically on tab switch; Resume button on screen |
 
+The touch controls (joystick and fire buttons) only appear on devices that have a touch screen,
+detected by capability with `matchMedia('(any-pointer: coarse)')` — not by screen width or user
+agent — and they appear or disappear if that changes (e.g. a touch screen is attached). On a
+desktop with only a mouse the arena is uncovered and the keyboard is used.
+
 On phones, the in-game fullscreen button (top right) hides the browser address bar. It is hidden
 where the Fullscreen API isn't available (e.g. iPhone Safari), and the layout uses `100dvh` so the
 arena and HUD always fit the visible area.
